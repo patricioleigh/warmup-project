@@ -1,16 +1,42 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Items } from './schemas/items.schema';
 import { Model } from 'mongoose';
 import { HnService } from 'src/hn/hn.service';
 import { CleanHnItem } from 'src/hn/clean.types';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class ItemsService {
+    private readonly logger = new Logger(ItemsService.name);
+    private isSyncRunnning = false;
+
     constructor(
         @InjectModel(Items.name) private ItemsModel: Model<Items>,
         private readonly hnService: HnService,
     ){}
+
+    @Cron('0 * * * *')
+    async hourlySync(){
+        if (this.isSyncRunnning){
+            this.logger.warn('hourlySync skipped: previous sync still running');
+            return;
+        }
+        this.isSyncRunnning = true;
+        try{
+            this.logger.log('hourlySync started');
+            const result = await this.syncLatest({ query: 'node.js', page: 0, hitsPerPage: 20});
+            this.logger.log(
+                `hourlySync finished: fetched = ${result?.fetched} kept = ${result?.kept} upserted = ${result?.upserted} modified = ${result?.modified}`,
+            );
+        } catch (e: any){
+            this.logger.error(`hourlySync failed: ${e?.message ?? e}`, e?.stack);
+        } finally {
+            this.isSyncRunnning = false;
+        }
+    }
+
+
 
     async syncLatest(params?: {query?: string; page?: number; hitsPerPage?: number}){
         const query = params?.query ?? 'node.js';
@@ -20,7 +46,11 @@ export class ItemsService {
         const cleanResponse = await this.hnService.fetchLatestClean(query, page, hitsPerPAge);
         const hits: CleanHnItem[] = cleanResponse.hits;
 
-        if (!hits.length) {
+        const uniqueById = new Map<string, CleanHnItem>();
+        for (const h of hits) uniqueById.set(h.hnObjectId, h);
+        const uniqueHits = [...uniqueById.values()];
+
+        if (!uniqueHits.length) {
             return {
                 query,
                 page,
@@ -30,11 +60,10 @@ export class ItemsService {
                 upserted: 0,
                 modified: 0,
                 matched: 0,
-                totalDocsAfter: await this.ItemsModel.countDocuments(),
             };
         }
 
-        const ops = hits.map((h) => ({
+        const ops = uniqueHits.map((h) => ({
             updateOne: {
                 filter: { objectId: h.hnObjectId},
                 update: {
@@ -53,10 +82,30 @@ export class ItemsService {
             },
         }));
 
-        const result = await this.ItemsModel.bulkWrite(ops, {ordered:false});
+        let upserted = 0;
+        let modified = 0;
+        let matched = 0;
 
-        const total = await this.ItemsModel.countDocuments();
-        const sample = await this.ItemsModel.findOne().lean();
+        try {
+            const result: any = await this.ItemsModel.bulkWrite(ops, {ordered:false});
+
+            upserted =
+            result?.upserterCount ??
+            result?.result?.nUpserted ??
+            result?.getRawResponde?.()?.nUpserted ??
+            0;
+
+            modified =
+            result?.modifiedCount ??
+            result?.result?.nModified ??
+            result?.getRawResponse?.()?.nModified ??
+            0;
+
+            matched =
+            result?.matchedCount ??
+            result?.result?.nMatched ??
+            result?.getRawResponse?.()?.nMatched ??
+            0;
 
         return {
             query,
@@ -64,15 +113,33 @@ export class ItemsService {
             hitsPerPAge,
             fetchedd: cleanResponse.fetched ?? hits.length,
             kept: hits.length,
-            upserted: (result as any).upserterCount ?? 0,
-            modified: (result as any).modifiedCount ?? 0,
-            matched: (result as any).matchedCount ?? 0,
-            bulkWriteResult: result,
-            totalDocsAfter: total, 
-            sample,
-            dbName: this.ItemsModel.db.name,
-            collectionName: this.ItemsModel.db.collection.name,
+            unique: uniqueHits.length,
+            upserted,
+            modified,
+            matched,
         };
+        } catch (e: any){
+            const writeErrors = e?.writeErrors?.map((we:any) => ({
+                code: we?.code,
+                errmsg: we?.errmsg,
+            }));
+
+            this.logger.error(`synLatest bulkwrite failed: ${e?.message ?? e}`, e?.stack);
+
+            return {
+                query,
+                page,
+                hitsPerPAge,
+                fetched: cleanResponse.fetched ?? hits.length,
+                kept: hits.length,
+                unique: uniqueHits.length,
+                upserted,
+                modified,
+                matched,
+                error:e?.message ?? 'bilWrite failed',
+                writeErrors: writeErrors ?? null,
+            };
+        }
     }
 
 
@@ -121,5 +188,15 @@ export class ItemsService {
         return {objectId, isDeleted: true, changed: true};
     }
 
-
+    async findAllNotDeleted() {
+        try{
+            return await this.ItemsModel
+                .find({isDeleted: false})
+                .sort({createdAt: -1})
+                .lean();            
+        } catch (e:any){
+            this.logger.error(`findAllNotDeleted failed: ${e?.message ?? e}`, e.stack);
+            throw new InternalServerErrorException('Failed to fetch items');
+        }
+    }
 }

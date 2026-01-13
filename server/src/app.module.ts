@@ -5,9 +5,16 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ItemsModule } from './items/items.module';
 import { HnModule } from './hn/hn.module';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
-  imports: [MongooseModule.forRoot('mongodb://root:rootpass@localhost:27017/warmupdb?authSource=admin'), ItemsModule, HnModule, ConfigModule.forRoot()],
+  imports: [
+    MongooseModule.forRoot('mongodb://root:rootpass@localhost:27017/warmupdb?authSource=admin'), 
+    ItemsModule, 
+    HnModule, 
+    ConfigModule.forRoot(),
+    ScheduleModule.forRoot(),
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -20,15 +20,10 @@ export class ItemsController {
     }
 
     @Get()
-    async getItems(
-        @Query('page') page?: string,
-        @Query('limit') limit?: string,      
-    ){
-        return this.itemsService.findNotDeleted({
-            page: page ? Number(page): 1,
-            limit: limit ? Number(limit): 20,
-        });
+    async getItems(){
+        return this.itemsService.findAllNotDeleted();
     }
+    
 
 
     @Patch(':objectId/delete')
