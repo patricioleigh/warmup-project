@@ -11,6 +11,7 @@ export function formatCreatedAt(createdAt: Date | string){
         return d.toLocaleTimeString(undefined, {
             hour: "numeric",
             minute: "2-digit",
+            timeZone: "UTC",
         });
     }
 
@@ -20,7 +21,8 @@ export function formatCreatedAt(createdAt: Date | string){
 
     return d.toLocaleDateString(undefined, {
         month: "short",
-        day: "numeric"
+        day: "numeric",
+        timeZone: "UTC",
     })
 
 
