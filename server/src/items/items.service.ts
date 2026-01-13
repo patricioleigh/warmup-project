@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Items } from './schemas/items.schema';
 import { Model } from 'mongoose';
@@ -104,8 +104,21 @@ export class ItemsService {
             total,
             items,
         };
+    }
 
+    async markAsDeleted(objectId: string){
+        const res = await this.ItemsModel.updateOne(
+            {objectId, isDeleted:false},
+            { $set: { isDeleted: true}},
+        );
 
+        if (res.matchedCount === 0){
+            const exists = await this.ItemsModel.exists({objectId});
+            if (!exists) throw new NotFoundException(`Iem not foun: ${objectId}`);
+            return { objectId, isDeleted: true, changued: false};
+        }
+
+        return {objectId, isDeleted: true, changed: true};
     }
 
 

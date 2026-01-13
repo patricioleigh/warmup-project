@@ -1,4 +1,4 @@
-import { Controller, Post, Query, Get} from '@nestjs/common';
+import { Controller, Post, Query, Get, Patch, Param} from '@nestjs/common';
 import { ItemsService } from './items.service';
 
 
@@ -29,6 +29,13 @@ export class ItemsController {
             limit: limit ? Number(limit): 20,
         });
     }
+
+
+    @Patch(':objectId/delete')
+    async deleteItem(@Param('objectId') objectId: string){
+        return this.itemsService.markAsDeleted(objectId)
+    }
+
 
 
 
