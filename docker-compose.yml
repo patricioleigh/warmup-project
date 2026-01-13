@@ -1,17 +1,75 @@
 services:
   mongo:
     image: mongo:7
+    container_name: warmup-mongo
     restart: unless-stopped
     ports:
       - "27017:27017"    
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: rootpass
+      MONGO_INITDB_DATABSE: warmupdb
     volumes:
       - mongo_data:/data/db
+    networks:
+      - warmup-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: warmup-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      MONGO_URI: mongodb://root:rootpass@mongo:27017/warmupdb?authSource=admin
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./server:/app
+      - server_node_modules:/app/node_modules
+    networks:
+      - warmup-net
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: warmup-client
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      NEXT_PUBLIC_API_BASE: http://localhost:3001
+      INTERNAL_API_URL: http://server:3001
+    depends_on:
+      - server
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app
+      - client_node_modules:/app/node_modules
+    networks:
+      - warmup-net
+
 
 volumes:
   mongo_data:
+  server_node_modules:
+  client_node_modules:
+
+networks:
+  warmup-net:
+    driver: bridge
 
 
 

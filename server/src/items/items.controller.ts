@@ -30,8 +30,5 @@ export class ItemsController {
     async deleteItem(@Param('objectId') objectId: string){
         return this.itemsService.markAsDeleted(objectId)
     }
-
-
-
-
+    
 }

@@ -16,7 +16,7 @@ export class ItemsService {
         private readonly hnService: HnService,
     ){}
 
-    @Cron('0 * * * *')
+    @Cron('* * * * *')
     async hourlySync(){
         if (this.isSyncRunnning){
             this.logger.warn('hourlySync skipped: previous sync still running');
