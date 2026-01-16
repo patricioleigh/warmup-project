@@ -4,6 +4,7 @@ import { Items, ItemsSchema } from './schemas/items.schema';
 import { ItemsService } from './items.service';
 import { HnModule } from 'src/hn/hn.module';
 import { ItemsController } from './items.controller';
+import { JobsModule } from '../jobs/jobs.module';
 
 @Module({
     imports: [
@@ -11,7 +12,8 @@ import { ItemsController } from './items.controller';
             name: Items.name,
             schema: ItemsSchema,
         }]),
-        HnModule
+        HnModule,
+        JobsModule,
     ],
     providers: [ItemsService],
     controllers: [ItemsController]
