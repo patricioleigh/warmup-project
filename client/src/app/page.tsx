@@ -1,24 +1,44 @@
-import {Header} from "@/components/header";
-import { ItemsClient } from "@/components/ItemsClient"; 
-import type { Item } from "@/types/item";
+"use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { Header } from "@/components/header";
+import { AuthPanel } from "@/components/AuthPanel";
+import { ArticlesClient } from "@/components/ArticlesClient";
+import { clearStoredToken, getStoredToken, setStoredToken } from "@/lib/auth";
+import { getApiBaseUrl } from "@/lib/api";
 
-export default async function Page() {
-  const apiBaseUrl = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "gttp://localhost:3001";
-  if (!apiBaseUrl){
-    throw new Error("Missing API_BASE in client/.env.local");
+export default function Page() {
+  const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setToken(getStoredToken());
+  }, []);
+
+  function handleAuthSuccess(accessToken: string) {
+    setStoredToken(accessToken);
+    setToken(accessToken);
   }
 
-  const res = await fetch(`${apiBaseUrl}/items`, {cache: "no-store"});
-  const data = await res.json()
-  const items: Item[] = Array.isArray(data) ? data : (data.items ?? []);
+  function handleLogout() {
+    clearStoredToken();
+    setToken(null);
+  }
+
   return (
     <main>
       <Header />
-      <section style={{maxWidth: 1100, margin: "0 auto"}}>
-        <ItemsClient items={items} apiBaseUrl={apiBaseUrl}/>
+      <section className="page-container">
+        {!token ? (
+          <AuthPanel apiBaseUrl={apiBaseUrl} onAuthSuccess={handleAuthSuccess} />
+        ) : (
+          <ArticlesClient
+            apiBaseUrl={apiBaseUrl}
+            token={token}
+            onLogout={handleLogout}
+          />
+        )}
       </section>
     </main>
-
-  )
+  );
 }

@@ -9,6 +9,10 @@ export function ItemsList({
     items: Item[];
     onDelete: (id:string) => void;
 }){
+    if (!items.length) {
+        return <p className="items-empty">No articles to show.</p>;
+    }
+
     return (
         <ul className="items-list">
             {items.map((item, idx) => {

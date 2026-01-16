@@ -1,0 +1,26 @@
+# Keep docker build contexts small and prevent leaking secrets.
+
+.git
+.gitignore
+.github
+
+**/node_modules
+**/dist
+**/build
+**/.next
+**/out
+
+**/.env
+**/.env.*
+
+**/*.log
+**/coverage
+**/.nyc_output
+
+specs
+.specify
+
+.DS_Store
+.idea
+.vscode
+

@@ -1,0 +1,9 @@
+node_modules
+.next
+out
+coverage
+.nyc_output
+.env
+.env.*
+.DS_Store
+

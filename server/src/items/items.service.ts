@@ -1,45 +1,74 @@
-import { Injectable, Logger, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Items } from './schemas/items.schema';
 import { Model } from 'mongoose';
 import { HnService } from 'src/hn/hn.service';
 import { CleanHnItem } from 'src/hn/clean.types';
-import { Cron } from '@nestjs/schedule';
+import { Cron, SchedulerRegistry } from '@nestjs/schedule';
+import { JobsService } from '../jobs/jobs.service';
 
 @Injectable()
-export class ItemsService {
+export class ItemsService implements OnModuleInit {
     private readonly logger = new Logger(ItemsService.name);
-    private isSyncRunnning = false;
 
     constructor(
         @InjectModel(Items.name) private ItemsModel: Model<Items>,
         private readonly hnService: HnService,
+        private readonly jobs: JobsService,
+        private readonly schedulerRegistry: SchedulerRegistry,
     ){}
+
+    onModuleInit() {
+        const jobs = this.schedulerRegistry.getCronJobs();
+        this.logger.log({
+            msg: 'scheduler initialized',
+            cronJobs: Array.from(jobs.keys()),
+        });
+
+        const hourlyJob = jobs.get('ItemsService.hourlySync');
+        if (hourlyJob) {
+            try {
+                const nextDate = hourlyJob.nextDate() as any;
+                const nextRun = typeof nextDate?.toISO === 'function' ? nextDate.toISO() : String(nextDate);
+                this.logger.log({
+                    msg: 'hourlySync cron registered',
+                    nextRun,
+                });
+            } catch (e: any) {
+                this.logger.warn({ msg: 'hourlySync cron registered but next run unavailable', error: e?.message ?? e });
+            }
+        } else {
+            this.logger.warn({ msg: 'hourlySync cron not found in registry' });
+        }
+    }
 
     @Cron('0 * * * *')
     async hourlySync(){
-        if (this.isSyncRunnning){
-            this.logger.warn('hourlySync skipped: previous sync still running');
-            return;
-        }
-        this.isSyncRunnning = true;
-        try{
-            this.logger.log('hourlySync started');
-            const result = await this.syncLatest({ query: 'node.js', page: 0, hitsPerPage: 20});
-            this.logger.log(
-                `hourlySync finished: fetched = ${result?.fetched} kept = ${result?.kept} upserted = ${result?.upserted} modified = ${result?.modified}`,
-            );
-        } catch (e: any){
-            this.logger.error(`hourlySync failed: ${e?.message ?? e}`, e?.stack);
-        } finally {
-            this.isSyncRunnning = false;
+        this.logger.log({ msg: 'hourlySync cron triggered' });
+        this.logger.debug({ msg: 'hourlySync attempting runExclusive lock', jobName: 'hn-hourly-sync' });
+        const result = await this.jobs.runExclusive({
+            jobName: 'hn-hourly-sync',
+            // lock TTL: 10 minutes (job should finish far below this; prevents overlap across instances)
+            lockTtlMs: 10 * 60 * 1000,
+            run: async ({ jobRunId }) => {
+                this.logger.log({ jobRunId, msg: 'hourlySync runExclusive lock acquired' });
+                const result = await this.syncLatest({ query: 'nodejs', page: 0, hitsPerPage: 20});
+                const itemsProcessed = Number(result?.upserted ?? 0) + Number(result?.modified ?? 0);
+                this.logger.log({ jobRunId, msg: 'hourlySync finished', result });
+                return { itemsProcessed, result } as any;
+            },
+        });
+        if (result?.ran === false) {
+            this.logger.warn({ msg: 'hourlySync skipped: runExclusive lock not acquired' });
+        } else {
+            this.logger.log({ msg: 'hourlySync runExclusive completed', jobRunId: result?.jobRunId });
         }
     }
 
 
 
     async syncLatest(params?: {query?: string; page?: number; hitsPerPage?: number}){
-        const query = params?.query ?? 'node.js';
+        const query = params?.query ?? 'nodejs';
         const page = params?.page ?? 0;
         const hitsPerPAge = params?.hitsPerPage ?? 20;
 
@@ -68,7 +97,7 @@ export class ItemsService {
                 filter: { objectId: h.hnObjectId},
                 update: {
                     $set: {
-                        objectID: h.hnObjectId,
+                        objectId: h.hnObjectId,
                         title: h.title,
                         url: h.url ?? undefined,
                         author: h.author,
@@ -111,7 +140,7 @@ export class ItemsService {
             query,
             page,
             hitsPerPAge,
-            fetchedd: cleanResponse.fetched ?? hits.length,
+            fetched: cleanResponse.fetched ?? hits.length,
             kept: hits.length,
             unique: uniqueHits.length,
             upserted,

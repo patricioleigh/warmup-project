@@ -1,0 +1,44 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: warmup-mongo-test
+    restart: "no"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpass
+      MONGO_INITDB_DATABASE: warmupdb
+    networks:
+      - warmup-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server-test:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: build
+    container_name: warmup-server-test
+    restart: "no"
+    environment:
+      NODE_ENV: test
+      PORT: 3001
+      MONGO_URI: mongodb://root:rootpass@mongo:27017/warmupdb?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      MAX_ITEMS: ${MAX_ITEMS:-100}
+      MAX_RESPONSE_BYTES: ${MAX_RESPONSE_BYTES:-262144}
+      RATE_LIMIT_TTL_SECONDS: 60
+      RATE_LIMIT_LIMIT: 100000
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - warmup-net
+    command: ["npm", "run", "test:e2e"]
+
+networks:
+  warmup-net:
+    driver: bridge
+
