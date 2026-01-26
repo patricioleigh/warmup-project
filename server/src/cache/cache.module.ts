@@ -21,12 +21,19 @@ import { CacheService } from './cache.service';
           },
           username: url.username || undefined,
           password: url.password || undefined,
-          database: url.pathname ? Number(url.pathname.replace('/', '')) || 0 : 0,
+          database: url.pathname
+            ? Number(url.pathname.replace('/', '')) || 0
+            : 0,
         });
 
         const ttlSeconds = config.get<number>('REDIS_TTL_SECONDS', 3900);
         const ttl = ttlSeconds * 1000; // cache-manager v6 expects milliseconds
-        logger.log({ msg: 'cache store configured', store: 'redis', ttlSeconds, ttlMs: ttl });
+        logger.log({
+          msg: 'cache store configured',
+          store: 'redis',
+          ttlSeconds,
+          ttlMs: ttl,
+        });
 
         //  Store both the redis client and the store globally for CacheService to access
         // This is a workaround for cache-manager v6's complex nested structure

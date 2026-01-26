@@ -26,3 +26,25 @@ export async function createTestApp(): Promise<INestApplication> {
   return app;
 }
 
+type RedisClientLike = {
+  flushDb?: () => Promise<unknown>;
+  flushdb?: () => Promise<unknown>;
+  sendCommand?: (args: string[]) => Promise<unknown>;
+};
+
+export async function flushRedis(): Promise<void> {
+  const client = (global as any).__redisClient as RedisClientLike | undefined;
+  if (!client) return;
+
+  if (typeof client.flushDb === 'function') {
+    await client.flushDb();
+    return;
+  }
+  if (typeof client.flushdb === 'function') {
+    await client.flushdb();
+    return;
+  }
+  if (typeof client.sendCommand === 'function') {
+    await client.sendCommand(['FLUSHDB']);
+  }
+}

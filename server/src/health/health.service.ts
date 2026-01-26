@@ -12,11 +12,10 @@ export class HealthService {
 
   isMongoReady(): boolean {
     // 1 = connected
-    return this.connection?.readyState === 1;
+    return Number(this.connection?.readyState) === 1;
   }
 
   async isRedisReady(): Promise<boolean> {
     return this.cacheService.ping();
   }
 }
-

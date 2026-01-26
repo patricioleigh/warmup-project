@@ -8,16 +8,18 @@ import { JobsModule } from '../jobs/jobs.module';
 import { CacheModule } from '../cache/cache.module';
 
 @Module({
-    imports: [
-        MongooseModule.forFeature([{
-            name: Items.name,
-            schema: ItemsSchema,
-        }]),
-        HnModule,
-        JobsModule,
-        CacheModule,
-    ],
-    providers: [ItemsService],
-    controllers: [ItemsController]
+  imports: [
+    MongooseModule.forFeature([
+      {
+        name: Items.name,
+        schema: ItemsSchema,
+      },
+    ]),
+    HnModule,
+    JobsModule,
+    CacheModule,
+  ],
+  providers: [ItemsService],
+  controllers: [ItemsController],
 })
 export class ItemsModule {}

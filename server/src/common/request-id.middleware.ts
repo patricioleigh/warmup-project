@@ -3,7 +3,11 @@ import { randomUUID } from 'crypto';
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
-export function requestIdMiddleware(req: Request, res: Response, next: NextFunction) {
+export function requestIdMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   const incoming = req.header(REQUEST_ID_HEADER);
   const requestId = (incoming && incoming.trim()) || `req_${randomUUID()}`;
 
@@ -12,4 +16,3 @@ export function requestIdMiddleware(req: Request, res: Response, next: NextFunct
 
   next();
 }
-

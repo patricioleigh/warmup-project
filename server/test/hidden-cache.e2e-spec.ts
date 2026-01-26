@@ -2,12 +2,22 @@ import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
 import { getConnectionToken } from '@nestjs/mongoose';
 import type { Connection } from 'mongoose';
-import { createTestApp } from './test-app';
+import { createTestApp, flushRedis } from './test-app';
 import { CacheService } from '../src/cache/cache.service';
 
-async function registerAndLogin(app: INestApplication, email: string, password: string) {
-  await request(app.getHttpServer()).post('/api/v1/auth/register').send({ email, password }).expect(201);
-  const res = await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email, password }).expect(200);
+async function registerAndLogin(
+  app: INestApplication,
+  email: string,
+  password: string,
+) {
+  await request(app.getHttpServer())
+    .post('/api/v1/auth/register')
+    .send({ email, password })
+    .expect(201);
+  const res = await request(app.getHttpServer())
+    .post('/api/v1/auth/login')
+    .send({ email, password })
+    .expect(200);
   return res.body.accessToken as string;
 }
 
@@ -27,6 +37,7 @@ describe('Hidden items cache (e2e)', () => {
   });
 
   beforeEach(async () => {
+    await flushRedis();
     await conn.collection('users').deleteMany({});
     await conn.collection('items').deleteMany({});
     await conn.collection('userarticleinteractions').deleteMany({});

@@ -9,4 +9,3 @@ import { CacheModule } from '../cache/cache.module';
   providers: [HealthService],
 })
 export class HealthModule {}
-

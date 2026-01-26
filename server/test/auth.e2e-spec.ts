@@ -1,6 +1,6 @@
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp } from './test-app';
+import { createTestApp, flushRedis } from './test-app';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
@@ -11,6 +11,10 @@ describe('Auth (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  beforeEach(async () => {
+    await flushRedis();
   });
 
   it('POST /api/v1/auth/register + POST /api/v1/auth/login returns access token', async () => {
@@ -31,4 +35,3 @@ describe('Auth (e2e)', () => {
     expect(loginRes.body.accessToken.length).toBeGreaterThan(10);
   });
 });
-

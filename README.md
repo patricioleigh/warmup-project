@@ -157,6 +157,8 @@ docker compose -f docker-compose.test.yml up --abort-on-container-exit
 
 ## API Documentation
 
+Swagger UI is available at **`/api/docs`** (e.g. `http://localhost:3001/api/docs`).
+
 ### Authentication Endpoints
 
 | Method | Endpoint | Description |

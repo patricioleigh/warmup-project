@@ -2,11 +2,21 @@ import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
 import { getConnectionToken } from '@nestjs/mongoose';
 import type { Connection } from 'mongoose';
-import { createTestApp } from './test-app';
+import { createTestApp, flushRedis } from './test-app';
 
-async function registerAndLogin(app: INestApplication, email: string, password: string) {
-  await request(app.getHttpServer()).post('/api/v1/auth/register').send({ email, password }).expect(201);
-  const res = await request(app.getHttpServer()).post('/api/v1/auth/login').send({ email, password }).expect(200);
+async function registerAndLogin(
+  app: INestApplication,
+  email: string,
+  password: string,
+) {
+  await request(app.getHttpServer())
+    .post('/api/v1/auth/register')
+    .send({ email, password })
+    .expect(201);
+  const res = await request(app.getHttpServer())
+    .post('/api/v1/auth/login')
+    .send({ email, password })
+    .expect(200);
   return res.body.accessToken as string;
 }
 
@@ -24,6 +34,7 @@ describe('Articles (e2e)', () => {
   });
 
   beforeEach(async () => {
+    await flushRedis();
     // Clean collections used by these tests
     await conn.collection('users').deleteMany({});
     await conn.collection('items').deleteMany({});
@@ -31,7 +42,11 @@ describe('Articles (e2e)', () => {
   });
 
   it('GET /api/v1/articles returns paginated newest-first for authenticated user', async () => {
-    const token = await registerAndLogin(app, `u_${Date.now()}@ex.com`, 'StrongPassw0rd!');
+    const token = await registerAndLogin(
+      app,
+      `u_${Date.now()}@ex.com`,
+      'StrongPassw0rd!',
+    );
 
     const older = new Date(Date.now() - 60_000);
     const newer = new Date(Date.now() - 1_000);
@@ -68,8 +83,16 @@ describe('Articles (e2e)', () => {
 
   it('DELETE /api/v1/articles/:objectId hides for that user only', async () => {
     const password = 'StrongPassw0rd!';
-    const token1 = await registerAndLogin(app, `u1_${Date.now()}@ex.com`, password);
-    const token2 = await registerAndLogin(app, `u2_${Date.now()}@ex.com`, password);
+    const token1 = await registerAndLogin(
+      app,
+      `u1_${Date.now()}@ex.com`,
+      password,
+    );
+    const token2 = await registerAndLogin(
+      app,
+      `u2_${Date.now()}@ex.com`,
+      password,
+    );
 
     await conn.collection('items').insertOne({
       objectId: 'x1',
@@ -89,17 +112,25 @@ describe('Articles (e2e)', () => {
       .get('/api/v1/articles')
       .set('Authorization', `Bearer ${token1}`)
       .expect(200);
-    expect(list1.body.items.find((i: any) => i.objectId === 'x1')).toBeUndefined();
+    expect(
+      list1.body.items.find((i: any) => i.objectId === 'x1'),
+    ).toBeUndefined();
 
     const list2 = await request(app.getHttpServer())
       .get('/api/v1/articles')
       .set('Authorization', `Bearer ${token2}`)
       .expect(200);
-    expect(list2.body.items.find((i: any) => i.objectId === 'x1')).toBeDefined();
+    expect(
+      list2.body.items.find((i: any) => i.objectId === 'x1'),
+    ).toBeDefined();
   });
 
   it('GET /api/v1/articles rejects limit > MAX_ITEMS with stable code', async () => {
-    const token = await registerAndLogin(app, `u_${Date.now()}@ex.com`, 'StrongPassw0rd!');
+    const token = await registerAndLogin(
+      app,
+      `u_${Date.now()}@ex.com`,
+      'StrongPassw0rd!',
+    );
 
     const res = await request(app.getHttpServer())
       .get('/api/v1/articles?limit=100000')
@@ -109,4 +140,3 @@ describe('Articles (e2e)', () => {
     expect(res.body.code).toBe('PAGINATION_LIMIT_EXCEEDED');
   });
 });
-

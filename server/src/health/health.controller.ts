@@ -1,4 +1,10 @@
-import { Controller, Get, HttpCode, HttpStatus, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { HealthService } from './health.service';
 import { ErrorCode } from '../common/error-codes';
 
@@ -45,4 +51,3 @@ export class HealthController {
     };
   }
 }
-

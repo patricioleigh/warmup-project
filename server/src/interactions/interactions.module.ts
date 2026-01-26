@@ -10,7 +10,10 @@ import { CacheModule } from '../cache/cache.module';
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: UserArticleInteraction.name, schema: UserArticleInteractionSchema },
+      {
+        name: UserArticleInteraction.name,
+        schema: UserArticleInteractionSchema,
+      },
     ]),
     CacheModule,
   ],
@@ -18,4 +21,3 @@ import { CacheModule } from '../cache/cache.module';
   exports: [InteractionsService],
 })
 export class InteractionsModule {}
-

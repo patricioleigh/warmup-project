@@ -15,4 +15,3 @@ export class ListArticlesQueryDto {
   @Max(1000000) // hard upper bound; MAX_ITEMS enforced at runtime from config
   limit?: number;
 }
-

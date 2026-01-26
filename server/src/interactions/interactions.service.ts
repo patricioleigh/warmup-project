@@ -16,7 +16,10 @@ export class InteractionsService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async hideArticle(params: { userId: string; objectId: string }): Promise<{ objectId: string; isHidden: true }> {
+  async hideArticle(params: {
+    userId: string;
+    objectId: string;
+  }): Promise<{ objectId: string; isHidden: true }> {
     await this.interactions.findOneAndUpdate(
       { userId: params.userId, objectId: params.objectId },
       { $set: { isHidden: true } },
@@ -25,7 +28,11 @@ export class InteractionsService {
     const key = this.cacheService.getUserHiddenKey(params.userId);
     await this.cacheService.sadd(key, params.objectId);
     await this.cacheService.srem(key, EMPTY_SENTINEL);
-    this.logger.debug({ msg: 'cache write-through hide', key, objectId: params.objectId });
+    this.logger.debug({
+      msg: 'cache write-through hide',
+      key,
+      objectId: params.objectId,
+    });
     return { objectId: params.objectId, isHidden: true };
   }
 
@@ -35,7 +42,11 @@ export class InteractionsService {
     if (cached !== null) {
       const exists = await this.cacheService.exists(key);
       if (exists) {
-        this.logger.debug({ msg: 'cache hit hidden ids', key, count: cached.length });
+        this.logger.debug({
+          msg: 'cache hit hidden ids',
+          key,
+          count: cached.length,
+        });
         return cached.filter((id) => id !== EMPTY_SENTINEL);
       }
     }
@@ -52,9 +63,12 @@ export class InteractionsService {
     } else {
       await this.cacheService.sadd(key, EMPTY_SENTINEL);
     }
-    this.logger.debug({ msg: 'cache hydrated hidden ids', key, count: hiddenIds.length });
+    this.logger.debug({
+      msg: 'cache hydrated hidden ids',
+      key,
+      count: hiddenIds.length,
+    });
 
     return hiddenIds;
   }
 }
-

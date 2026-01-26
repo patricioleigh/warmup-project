@@ -7,9 +7,12 @@ import { JobState } from './schemas/job-state.schema';
 @Injectable()
 export class JobsService {
   private readonly logger = new Logger(JobsService.name);
-  private readonly instanceId = process.env.INSTANCE_ID || process.env.HOSTNAME || `inst_${randomUUID()}`;
+  private readonly instanceId =
+    process.env.INSTANCE_ID || process.env.HOSTNAME || `inst_${randomUUID()}`;
 
-  constructor(@InjectModel(JobState.name) private readonly jobStates: Model<JobState>) {}
+  constructor(
+    @InjectModel(JobState.name) private readonly jobStates: Model<JobState>,
+  ) {}
 
   async getState(jobName: string) {
     return this.jobStates.findOne({ jobName }).lean();
@@ -19,10 +22,16 @@ export class JobsService {
    * Executes the job only if it can acquire a distributed lock in MongoDB.
    * This prevents duplicate runs across multiple instances.
    */
-  async runExclusive<T extends Record<string, unknown> = Record<string, never>>(params: {
+  async runExclusive<
+    T extends Record<string, unknown> = Record<string, never>,
+  >(params: {
     jobName: string;
     lockTtlMs: number;
-    run: (ctx: { jobRunId: string }) => Promise<{ itemsProcessed?: number; meta?: Record<string, unknown> } & T>;
+    run: (ctx: {
+      jobRunId: string;
+    }) => Promise<
+      { itemsProcessed?: number; meta?: Record<string, unknown> } & T
+    >;
   }): Promise<{ ran: false } | ({ ran: true; jobRunId: string } & Partial<T>)> {
     const now = new Date();
     const jobRunId = `job_${randomUUID()}`;
@@ -47,8 +56,14 @@ export class JobsService {
     );
 
     // If we didn't acquire (because another instance holds it), skip.
-    if (!acquired || acquired.lockedBy !== this.instanceId || acquired.jobRunId !== jobRunId) {
-      const current = await this.jobStates.findOne({ jobName: params.jobName }).lean();
+    if (
+      !acquired ||
+      acquired.lockedBy !== this.instanceId ||
+      acquired.jobRunId !== jobRunId
+    ) {
+      const current = await this.jobStates
+        .findOne({ jobName: params.jobName })
+        .lean();
       this.logger.warn({
         jobName: params.jobName,
         msg: 'job skipped: lock not acquired',
@@ -61,7 +76,12 @@ export class JobsService {
     }
 
     const start = Date.now();
-    this.logger.log({ jobName: params.jobName, jobRunId, lockUntil, msg: 'job started' });
+    this.logger.log({
+      jobName: params.jobName,
+      jobRunId,
+      lockUntil,
+      msg: 'job started',
+    });
 
     try {
       const result = await params.run({ jobRunId });
@@ -75,14 +95,21 @@ export class JobsService {
             status: 'success',
             lastRun: new Date(),
             durationMs,
-            itemsProcessed: typeof itemsProcessed === 'number' ? itemsProcessed : undefined,
+            itemsProcessed:
+              typeof itemsProcessed === 'number' ? itemsProcessed : undefined,
             lockUntil: new Date(),
           },
           $unset: { lockedBy: 1 },
         },
       );
 
-      this.logger.log({ jobName: params.jobName, jobRunId, durationMs, itemsProcessed, msg: 'job finished' });
+      this.logger.log({
+        jobName: params.jobName,
+        jobRunId,
+        durationMs,
+        itemsProcessed,
+        msg: 'job finished',
+      });
       return { ran: true, jobRunId, ...(result as any) };
     } catch (err) {
       const durationMs = Date.now() - start;
@@ -102,9 +129,17 @@ export class JobsService {
         },
       );
 
-      this.logger.error({ jobName: params.jobName, jobRunId, errorId, durationMs, msg: 'job failed' }, err as any);
+      this.logger.error(
+        {
+          jobName: params.jobName,
+          jobRunId,
+          errorId,
+          durationMs,
+          msg: 'job failed',
+        },
+        err as any,
+      );
       return { ran: true, jobRunId, errorId } as any;
     }
   }
 }
-

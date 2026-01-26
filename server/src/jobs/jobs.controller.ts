@@ -8,7 +8,8 @@ export class JobsController {
 
   @Get(':jobName')
   async getJob(@Param('jobName') jobName: string) {
-    return (await this.jobs.getState(jobName)) ?? { jobName, status: 'unknown' };
+    return (
+      (await this.jobs.getState(jobName)) ?? { jobName, status: 'unknown' }
+    );
   }
 }
-
