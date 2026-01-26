@@ -16,6 +16,7 @@ import { AuthModule } from './auth/auth.module';
 import { ArticlesModule } from './articles/articles.module';
 import { InteractionsModule } from './interactions/interactions.module';
 import { JobsModule } from './jobs/jobs.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -31,6 +32,8 @@ import { JobsModule } from './jobs/jobs.module';
         RATE_LIMIT_TTL_SECONDS: Joi.number().integer().min(1).default(8000),
         RATE_LIMIT_LIMIT: Joi.number().integer().min(1).default(10),
         HN_HTTP_TIMEOUT_MS: Joi.number().integer().min(100).default(5000),
+        REDIS_URL: Joi.string().uri().required(),
+        REDIS_TTL_SECONDS: Joi.number().integer().min(60).default(3900),
       }).unknown(true),
     }),
     ThrottlerModule.forRootAsync({
@@ -54,6 +57,7 @@ import { JobsModule } from './jobs/jobs.module';
     ItemsModule, 
     HnModule, 
     ScheduleModule.forRoot(),
+    CacheModule,
     HealthModule,
     UsersModule,
     AuthModule,

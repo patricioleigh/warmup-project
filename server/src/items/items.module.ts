@@ -5,6 +5,7 @@ import { ItemsService } from './items.service';
 import { HnModule } from 'src/hn/hn.module';
 import { ItemsController } from './items.controller';
 import { JobsModule } from '../jobs/jobs.module';
+import { CacheModule } from '../cache/cache.module';
 
 @Module({
     imports: [
@@ -14,6 +15,7 @@ import { JobsModule } from '../jobs/jobs.module';
         }]),
         HnModule,
         JobsModule,
+        CacheModule,
     ],
     providers: [ItemsService],
     controllers: [ItemsController]

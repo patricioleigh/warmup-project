@@ -5,12 +5,14 @@ import {
   UserArticleInteractionSchema,
 } from './schemas/user-article-interaction.schema';
 import { InteractionsService } from './interactions.service';
+import { CacheModule } from '../cache/cache.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: UserArticleInteraction.name, schema: UserArticleInteractionSchema },
     ]),
+    CacheModule,
   ],
   providers: [InteractionsService],
   exports: [InteractionsService],

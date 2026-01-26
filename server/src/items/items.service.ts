@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, InternalServerErrorException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Items } from './schemas/items.schema';
 import { Model } from 'mongoose';
@@ -6,9 +6,10 @@ import { HnService } from 'src/hn/hn.service';
 import { CleanHnItem } from 'src/hn/clean.types';
 import { Cron, SchedulerRegistry } from '@nestjs/schedule';
 import { JobsService } from '../jobs/jobs.service';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
-export class ItemsService implements OnModuleInit {
+export class ItemsService implements OnApplicationBootstrap {
     private readonly logger = new Logger(ItemsService.name);
 
     constructor(
@@ -16,16 +17,20 @@ export class ItemsService implements OnModuleInit {
         private readonly hnService: HnService,
         private readonly jobs: JobsService,
         private readonly schedulerRegistry: SchedulerRegistry,
+        private readonly cacheService: CacheService,
     ){}
 
-    onModuleInit() {
+    onApplicationBootstrap() {
         const jobs = this.schedulerRegistry.getCronJobs();
         this.logger.log({
             msg: 'scheduler initialized',
             cronJobs: Array.from(jobs.keys()),
         });
 
-        const hourlyJob = jobs.get('ItemsService.hourlySync');
+        const hourlyJob =
+            jobs.get('ItemsService.hourlySync') ??
+            jobs.get('ItemsService_hourlySync') ??
+            jobs.get('hourlySync');
         if (hourlyJob) {
             try {
                 const nextDate = hourlyJob.nextDate() as any;
@@ -60,6 +65,9 @@ export class ItemsService implements OnModuleInit {
         });
         if (result?.ran === false) {
             this.logger.warn({ msg: 'hourlySync skipped: runExclusive lock not acquired' });
+        } else if (result?.ran && !(result as any).errorId) {
+            await this.cacheService.invalidateGlobalList();
+            this.logger.log({ msg: 'hourlySync cache invalidated', jobRunId: result?.jobRunId });
         } else {
             this.logger.log({ msg: 'hourlySync runExclusive completed', jobRunId: result?.jobRunId });
         }
