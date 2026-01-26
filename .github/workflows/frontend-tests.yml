@@ -1,0 +1,59 @@
+name: Frontend Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'client/**'
+      - '.github/workflows/frontend-tests.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'client/**'
+      - '.github/workflows/frontend-tests.yml'
+
+jobs:
+  test:
+    name: Run Frontend Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./client
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ./client
+        run: npm run lint
+
+      - name: Build application
+        working-directory: ./client
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASE: http://localhost:3001/api/v1
+          NODE_ENV: production
+
+      - name: Check build output
+        working-directory: ./client
+        run: |
+          if [ -d ".next" ]; then
+            echo "Build successful - .next directory created"
+            ls -la .next/
+          else
+            echo "Build failed - .next directory not found"
+            exit 1
+          fi

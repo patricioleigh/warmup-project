@@ -1,0 +1,116 @@
+name: Backend Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'server/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'server/**'
+      - '.github/workflows/backend-tests.yml'
+
+jobs:
+  test:
+    name: Run Backend Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: rootpass
+          MONGO_INITDB_DATABASE: warmupdb
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ./server
+        run: npm run lint
+
+      - name: Run unit tests
+        working-directory: ./server
+        run: npm test
+        env:
+          NODE_ENV: test
+
+      - name: Run E2E tests
+        working-directory: ./server
+        run: npm run test:e2e
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://root:rootpass@localhost:27017/warmupdb?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          REDIS_TTL_SECONDS: 3900
+          JWT_SECRET: test-secret-key-for-ci
+          MAX_ITEMS: 100
+          MAX_RESPONSE_BYTES: 262144
+
+      - name: Generate coverage report
+        working-directory: ./server
+        run: npm run test:cov
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://root:rootpass@localhost:27017/warmupdb?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          REDIS_TTL_SECONDS: 3900
+          JWT_SECRET: test-secret-key-for-ci
+          MAX_ITEMS: 100
+          MAX_RESPONSE_BYTES: 262144
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./server/coverage/lcov.info
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            server/coverage/
+            server/test-results/
+          retention-days: 30
