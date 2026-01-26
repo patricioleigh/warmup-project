@@ -3,9 +3,13 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { requestIdMiddleware } from './common/request-id.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Security: Apply helmet middleware for HTTP headers protection
+  app.use(helmet());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Warmup API')

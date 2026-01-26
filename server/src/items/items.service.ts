@@ -82,22 +82,7 @@ export class ItemsService implements OnApplicationBootstrap {
         });
         const itemsProcessed =
           Number(result?.upserted ?? 0) + Number(result?.modified ?? 0);
-        this.logger.log({
-          jobRunId,
-          msg: 'hourlySync finished',
-          result: {
-            query: result?.query,
-            page: result?.page,
-            hitsPerPage: result?.hitsPerPage,
-            fetched: result?.fetched,
-            kept: result?.kept,
-            unique: result?.unique,
-            upserted: result?.upserted,
-            modified: result?.modified,
-            matched: result?.matched,
-            itemsProcessed,
-          },
-        });
+        this.logger.log({ jobRunId, msg: 'hourlySync finished', result });
         return { itemsProcessed, result } as any;
       },
     });
@@ -126,12 +111,12 @@ export class ItemsService implements OnApplicationBootstrap {
   }) {
     const query = params?.query ?? 'nodejs';
     const page = params?.page ?? 0;
-    const hitsPerPage = params?.hitsPerPage ?? 20;
+    const hitsPerPAge = params?.hitsPerPage ?? 20;
 
     const cleanResponse = await this.hnService.fetchLatestClean(
       query,
       page,
-      hitsPerPage,
+      hitsPerPAge,
     );
     const hits: CleanHnItem[] = cleanResponse.hits;
 
@@ -143,7 +128,7 @@ export class ItemsService implements OnApplicationBootstrap {
       return {
         query,
         page,
-        hitsPerPage,
+        hitsPerPAge,
         fetched: cleanResponse.fetched ?? 0,
         kept: 0,
         upserted: 0,
@@ -181,9 +166,9 @@ export class ItemsService implements OnApplicationBootstrap {
       });
 
       upserted =
-        result?.upsertedCount ??
+        result?.upserterCount ??
         result?.result?.nUpserted ??
-        result?.getRawResponse?.()?.nUpserted ??
+        result?.getRawResponde?.()?.nUpserted ??
         0;
 
       modified =
@@ -201,7 +186,7 @@ export class ItemsService implements OnApplicationBootstrap {
       return {
         query,
         page,
-        hitsPerPage,
+        hitsPerPAge,
         fetched: cleanResponse.fetched ?? hits.length,
         kept: hits.length,
         unique: uniqueHits.length,
@@ -216,28 +201,28 @@ export class ItemsService implements OnApplicationBootstrap {
       }));
 
       this.logger.error(
-        `synLatest bulkwrite failed: ${e?.message ?? e}`,
+        `syncLatest bulkWrite failed: ${e?.message ?? e}`,
         e?.stack,
       );
 
       return {
         query,
         page,
-        hitsPerPage,
+        hitsPerPAge,
         fetched: cleanResponse.fetched ?? hits.length,
         kept: hits.length,
         unique: uniqueHits.length,
         upserted,
         modified,
         matched,
-        error: e?.message ?? 'bilWrite failed',
+        error: e?.message ?? 'bulkWrite failed',
         writeErrors: writeErrors ?? null,
       };
     }
   }
 
   async findAll() {
-    return this.ItemsModel.find({}).sort({ createAt: -1 }).limit(50).lean();
+    return this.ItemsModel.find({}).sort({ createdAt: -1 }).limit(50).lean();
   }
 
   async findNotDeleted(params?: { page?: number; limit?: number }) {
@@ -272,8 +257,8 @@ export class ItemsService implements OnApplicationBootstrap {
 
     if (res.matchedCount === 0) {
       const exists = await this.ItemsModel.exists({ objectId });
-      if (!exists) throw new NotFoundException(`Iem not foun: ${objectId}`);
-      return { objectId, isDeleted: true, changued: false };
+      if (!exists) throw new NotFoundException(`Item not found: ${objectId}`);
+      return { objectId, isDeleted: true, changed: false };
     }
 
     return { objectId, isDeleted: true, changed: true };
