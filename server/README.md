@@ -353,10 +353,6 @@ http://localhost:3001/api/v1/<endpoint>
 | `/api/v1/auth/login` | POST | No | Login user |
 | `/api/v1/articles` | GET | Yes | List articles for user |
 | `/api/v1/articles/:id` | DELETE | Yes | Hide article for user |
-| `/api/v1/items` | GET | No | Get all items |
-| `/api/v1/items/sync` | POST | No | Manual sync from HN |
-| `/api/v1/hn/fetch` | GET | No | Fetch raw HN data |
-| `/api/v1/hn/fetch-clean` | GET | No | Fetch cleaned HN data |
 
 ### Authentication Flow
 
