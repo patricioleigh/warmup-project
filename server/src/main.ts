@@ -11,14 +11,17 @@ async function bootstrap() {
   // Security: Apply helmet middleware for HTTP headers protection
   app.use(helmet());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Warmup API')
-    .setDescription('Warmup Project API (NestJS)')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, swaggerDocument);
+  // Security: Only enable Swagger API documentation in non-production environments
+  if (process.env.NODE_ENV !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Warmup API')
+      .setDescription('Warmup Project API (NestJS)')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, swaggerDocument);
+  }
 
   app.setGlobalPrefix('api/v1', {
     exclude: ['health', 'health/(.*)'],
