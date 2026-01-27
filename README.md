@@ -34,7 +34,7 @@ warmup-project/
 ### Prerequisites
 
 - [Docker](https://www.docker.com/get-started) and Docker Compose
-- [Node.js 20.x](https://nodejs.org/) (for local development)
+- [Node.js 24.x](https://nodejs.org/) (for local development)
 - [npm](https://www.npmjs.com/)
 
 ### 1. Clone the Repository
@@ -172,7 +172,6 @@ Swagger UI is available at **`/api/docs`** (e.g. `http://localhost:3001/api/docs
 |--------|----------|-------------|---------------|
 | GET | `/api/v1/articles` | List articles | ✅ Yes |
 | POST | `/api/v1/articles/:id/hide` | Hide article | ✅ Yes |
-| DELETE | `/api/v1/articles/:id/hide` | Unhide article | ✅ Yes |
 
 ### Health Check
 
@@ -298,9 +297,6 @@ npm run lint           # Run ESLint
 5. Wait for CI checks to pass
 6. Request code review
 
-## License
-
-[Specify your license]
 
 ## Support
 
