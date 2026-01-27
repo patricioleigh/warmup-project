@@ -5,10 +5,12 @@ import { of } from 'rxjs';
 describe('HnService', () => {
   let service: HnService;
   let httpService: HttpService;
+  let getMock: jest.Mock;
 
   beforeEach(() => {
+    getMock = jest.fn();
     httpService = {
-      get: jest.fn(),
+      get: getMock,
     } as any;
 
     service = new HnService(httpService);
@@ -32,7 +34,7 @@ describe('HnService', () => {
 
       const result = await service.fetchLatest('nodejs', 0, 20);
 
-      expect(httpService.get).toHaveBeenCalledWith(
+      expect(getMock).toHaveBeenCalledWith(
         'https://hn.algolia.com/api/v1/search_by_date',
         {
           params: { query: 'nodejs', page: 0, hitsPerPage: 20 },
@@ -48,7 +50,7 @@ describe('HnService', () => {
 
       await service.fetchLatest();
 
-      expect(httpService.get).toHaveBeenCalledWith(
+      expect(getMock).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: { query: 'node.js', page: 0, hitsPerPage: 20 },
@@ -165,7 +167,7 @@ describe('HnService', () => {
 
     it('should handle empty or null input', () => {
       expect(service.cleanHits([])).toEqual([]);
-      expect(service.cleanHits(null as any)).toEqual([]);
+      expect(service.cleanHits(null)).toEqual([]);
     });
   });
 
@@ -185,9 +187,7 @@ describe('HnService', () => {
         hitsPerPage: 20,
       };
 
-      (httpService.get as jest.Mock).mockReturnValue(
-        of({ data: mockRawData }),
-      );
+      (httpService.get as jest.Mock).mockReturnValue(of({ data: mockRawData }));
 
       const result = await service.fetchLatestClean('nodejs', 0, 20);
 
@@ -226,9 +226,7 @@ describe('HnService', () => {
         hitsPerPage: 20,
       };
 
-      (httpService.get as jest.Mock).mockReturnValue(
-        of({ data: mockRawData }),
-      );
+      (httpService.get as jest.Mock).mockReturnValue(of({ data: mockRawData }));
 
       const result = await service.fetchLatestClean('test', 0, 20);
 

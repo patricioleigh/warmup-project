@@ -4,16 +4,19 @@ import { getConnectionToken } from '@nestjs/mongoose';
 import type { Connection } from 'mongoose';
 import { createTestApp, flushRedis } from './test-app';
 
+type SupertestServer = Parameters<typeof request>[0];
+
 async function registerAndLogin(
   app: INestApplication,
   email: string,
   password: string,
 ) {
-  await request(app.getHttpServer())
+  const server = app.getHttpServer() as unknown as SupertestServer;
+  await request(server)
     .post('/api/v1/auth/register')
     .send({ email, password })
     .expect(201);
-  const res = await request(app.getHttpServer())
+  const res = await request(server)
     .post('/api/v1/auth/login')
     .send({ email, password })
     .expect(200);
@@ -70,7 +73,8 @@ describe('Articles (e2e)', () => {
       },
     ]);
 
-    const res = await request(app.getHttpServer())
+    const server = app.getHttpServer() as unknown as SupertestServer;
+    const res = await request(server)
       .get('/api/v1/articles?page=1&limit=20')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -103,12 +107,13 @@ describe('Articles (e2e)', () => {
       isDeleted: false,
     });
 
-    await request(app.getHttpServer())
+    const server = app.getHttpServer() as unknown as SupertestServer;
+    await request(server)
       .delete('/api/v1/articles/x1')
       .set('Authorization', `Bearer ${token1}`)
       .expect(200);
 
-    const list1 = await request(app.getHttpServer())
+    const list1 = await request(server)
       .get('/api/v1/articles')
       .set('Authorization', `Bearer ${token1}`)
       .expect(200);
@@ -116,7 +121,7 @@ describe('Articles (e2e)', () => {
       list1.body.items.find((i: any) => i.objectId === 'x1'),
     ).toBeUndefined();
 
-    const list2 = await request(app.getHttpServer())
+    const list2 = await request(server)
       .get('/api/v1/articles')
       .set('Authorization', `Bearer ${token2}`)
       .expect(200);
@@ -132,7 +137,8 @@ describe('Articles (e2e)', () => {
       'StrongPassw0rd!',
     );
 
-    const res = await request(app.getHttpServer())
+    const server = app.getHttpServer() as unknown as SupertestServer;
+    const res = await request(server)
       .get('/api/v1/articles?limit=100000')
       .set('Authorization', `Bearer ${token}`)
       .expect(400);

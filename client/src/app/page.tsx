@@ -27,7 +27,7 @@ export default function Page() {
 
   return (
     <main>
-      <Header />
+      <Header onLogout={handleLogout} showLogout={!!token} />
       <section className="page-container">
         {!token ? (
           <AuthPanel apiBaseUrl={apiBaseUrl} onAuthSuccess={handleAuthSuccess} />

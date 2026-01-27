@@ -20,14 +20,11 @@ export class AuthService {
     if (!user)
       throw new UnauthorizedException({ message: 'Invalid credentials' });
 
-    const ok = await bcrypt.compare(
-      params.password,
-      (user as any).passwordHash,
-    );
+    const ok = await bcrypt.compare(params.password, user.passwordHash);
     if (!ok)
       throw new UnauthorizedException({ message: 'Invalid credentials' });
 
-    const userId = String((user as any)._id);
+    const userId = String(user._id);
     const accessToken = await this.jwt.signAsync({
       sub: userId,
       email: user.email,

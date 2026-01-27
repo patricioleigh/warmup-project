@@ -7,16 +7,19 @@ import { CacheService } from '../src/cache/cache.service';
 import { ItemsService } from '../src/items/items.service';
 import { HnService } from '../src/hn/hn.service';
 
+type SupertestServer = Parameters<typeof request>[0];
+
 async function registerAndLogin(
   app: INestApplication,
   email: string,
   password: string,
 ) {
-  await request(app.getHttpServer())
+  const server = app.getHttpServer() as unknown as SupertestServer;
+  await request(server)
     .post('/api/v1/auth/register')
     .send({ email, password })
     .expect(201);
-  const res = await request(app.getHttpServer())
+  const res = await request(server)
     .post('/api/v1/auth/login')
     .send({ email, password })
     .expect(200);
@@ -66,7 +69,8 @@ describe('Hourly sync cache invalidation (e2e)', () => {
       isDeleted: false,
     });
 
-    await request(app.getHttpServer())
+    const server = app.getHttpServer() as unknown as SupertestServer;
+    await request(server)
       .get('/api/v1/articles?page=1&limit=20')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);

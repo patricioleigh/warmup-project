@@ -269,12 +269,14 @@ export class CacheService {
       msg: 'Unable to access Redis client',
       hasGlobalClient: !!globalClient,
       keyvKeys: keyv
-        ? Object.keys(keyv)
+        ? Object.keys(keyv as object)
             .filter((k) => !k.startsWith('_'))
             .slice(0, 10)
         : [],
-      optsKeys: keyv.opts ? Object.keys(keyv.opts) : [],
-      optsStoreKeys: keyv.opts?.store ? Object.keys(keyv.opts.store) : [],
+      optsKeys: keyv.opts ? Object.keys(keyv.opts as object) : [],
+      optsStoreKeys: keyv.opts?.store
+        ? Object.keys(keyv.opts.store as object)
+        : [],
     });
 
     return null;

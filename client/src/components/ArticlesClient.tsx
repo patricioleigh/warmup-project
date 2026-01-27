@@ -112,18 +112,6 @@ export function ArticlesClient({ apiBaseUrl, token, onLogout }: ArticlesClientPr
 
   return (
     <section className="articles-panel">
-      <div className="articles-toolbar">
-        <div>
-          <h2>Latest articles</h2>
-          <p className="articles-meta">
-            {pending ? "Loading..." : `${total} items`}
-          </p>
-        </div>
-        <button type="button" className="logout-btn" onClick={onLogout}>
-          Log out
-        </button>
-      </div>
-
       {error ? <p className="articles-error">{error}</p> : null}
       <ItemsList items={items} onDelete={handleDelete} />
 

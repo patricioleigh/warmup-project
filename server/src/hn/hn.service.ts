@@ -3,6 +3,14 @@ import { Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import { CleanHnItem } from './clean.types';
 
+function asSafeString(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'bigint') return value.toString();
+  return '';
+}
+
 @Injectable()
 export class HnService {
   private readonly baseUrl = 'https://hn.algolia.com/api/v1';
@@ -22,25 +30,27 @@ export class HnService {
     return res.data;
   }
 
-  cleanHits(hits: any[]): CleanHnItem[] {
-    return (hits ?? [])
-      .map((hit) => {
-        const hnObjectId = String(hit?.objectID ?? '').trim();
+  cleanHits(hits: unknown): CleanHnItem[] {
+    const arr = Array.isArray(hits) ? hits : [];
+    return arr
+      .map((hit: unknown) => {
+        const record = hit as Record<string, unknown> | null;
+
+        const hnObjectId = asSafeString(record?.objectID).trim();
         if (!hnObjectId) return null;
 
-        const author = String(hit?.author ?? '').trim();
+        const author = asSafeString(record?.author).trim();
         if (!author) return null;
 
-        const createdAt = String(hit?.created_at ?? '').trim();
+        const createdAt = asSafeString(record?.created_at).trim();
         if (!createdAt) return null;
 
-        const title = String(hit?.story_title ?? hit?.title ?? '').trim();
+        const title = asSafeString(record?.story_title ?? record?.title).trim();
         if (!title) return null;
 
-        const url =
-          (hit?.story_url ?? hit?.url ?? null)
-            ? String(hit.story_url ?? hit.url)
-            : null;
+        const urlValue = record?.story_url ?? record?.url;
+        const urlString = asSafeString(urlValue).trim();
+        const url = urlString ? urlString : null;
 
         return { hnObjectId, title, url, author, createdAt };
       })

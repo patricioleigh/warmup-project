@@ -21,6 +21,31 @@ type ArticleDto = {
   createdAt: string;
 };
 
+type ItemsListRow = {
+  objectId?: unknown;
+  title?: unknown;
+  url?: unknown;
+  author?: unknown;
+  createdAt?: unknown;
+};
+
+function asSafeString(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'bigint') return value.toString();
+  return '';
+}
+
+function asSafeDate(value: unknown): Date | null {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
 @Injectable()
 export class ArticlesService {
   private readonly logger = new Logger(ArticlesService.name);
@@ -76,17 +101,21 @@ export class ArticlesService {
             createdAt: 1,
             _id: 0,
           })
-          .lean(),
+          .lean<ItemsListRow[]>(),
       ]);
 
       total = dbTotal;
-      items = (rows as any[]).map((r) => ({
-        objectId: String(r.objectId),
-        title: String(r.title),
-        url: r.url ? String(r.url) : undefined,
-        author: String(r.author),
-        createdAt: new Date(r.createdAt).toISOString(),
-      }));
+      items = rows.map((r) => {
+        const createdAt = asSafeDate(r.createdAt);
+
+        return {
+          objectId: asSafeString(r.objectId),
+          title: asSafeString(r.title),
+          url: r.url ? asSafeString(r.url) : undefined,
+          author: asSafeString(r.author),
+          createdAt: (createdAt ?? new Date(0)).toISOString(),
+        };
+      });
 
       const ttlSeconds = this.config.get<number>('REDIS_TTL_SECONDS') ?? 3900;
       await this.cacheService.setGlobalList(

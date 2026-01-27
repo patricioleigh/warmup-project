@@ -11,7 +11,6 @@ describe('ArticlesService', () => {
   let service: ArticlesService;
   let itemsModel: any;
   let interactionsService: any;
-  let configService: any;
   let cacheService: any;
 
   beforeEach(async () => {
@@ -72,7 +71,6 @@ describe('ArticlesService', () => {
     service = module.get<ArticlesService>(ArticlesService);
     itemsModel = module.get(getModelToken(Items.name));
     interactionsService = module.get<InteractionsService>(InteractionsService);
-    configService = module.get<ConfigService>(ConfigService);
     cacheService = module.get<CacheService>(CacheService);
   });
 
@@ -142,9 +140,24 @@ describe('ArticlesService', () => {
     it('should filter out hidden articles', async () => {
       const mockCachedData = {
         items: [
-          { objectId: '1', title: 'Article 1', author: 'test', createdAt: '2024-01-01T00:00:00.000Z' },
-          { objectId: '2', title: 'Article 2', author: 'test', createdAt: '2024-01-01T00:00:00.000Z' },
-          { objectId: '3', title: 'Article 3', author: 'test', createdAt: '2024-01-01T00:00:00.000Z' },
+          {
+            objectId: '1',
+            title: 'Article 1',
+            author: 'test',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            objectId: '2',
+            title: 'Article 2',
+            author: 'test',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
+          {
+            objectId: '3',
+            title: 'Article 3',
+            author: 'test',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          },
         ],
         total: 3,
       };
@@ -159,7 +172,9 @@ describe('ArticlesService', () => {
       });
 
       expect(result.items).toHaveLength(2);
-      expect(result.items.find((item: any) => item.objectId === '2')).toBeUndefined();
+      expect(
+        result.items.find((item: any) => item.objectId === '2'),
+      ).toBeUndefined();
       expect(result.total).toBe(2); // 3 - 1 hidden
     });
 

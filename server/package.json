@@ -5,6 +5,9 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "overrides": {
+    "lodash": "4.17.21"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -23,14 +26,14 @@
     "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.1",
-    "@nestjs/config": "^1.1.5",
+    "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/mongoose": "^11.0.4",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/schedule": "^6.1.0",
-    "@nestjs/swagger": "^2.5.1",
+    "@nestjs/swagger": "^11.2.5",
     "@nestjs/throttler": "^6.4.0",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",

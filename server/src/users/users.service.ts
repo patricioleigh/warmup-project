@@ -3,14 +3,18 @@ import { InjectModel } from '@nestjs/mongoose';
 import type { Model } from 'mongoose';
 import { User } from './schemas/user.schema';
 
+type UserRecord = User & { _id: unknown };
+
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
-  async findByEmail(email: string): Promise<(User & { _id: any }) | null> {
-    return this.userModel.findOne({ email: email.toLowerCase() }).lean();
+  async findByEmail(email: string): Promise<UserRecord | null> {
+    return this.userModel
+      .findOne({ email: email.toLowerCase() })
+      .lean<UserRecord>();
   }
 
   async createUser(params: {

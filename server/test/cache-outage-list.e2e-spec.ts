@@ -5,16 +5,19 @@ import type { Connection } from 'mongoose';
 import { createTestApp, flushRedis } from './test-app';
 import { CacheService } from '../src/cache/cache.service';
 
+type SupertestServer = Parameters<typeof request>[0];
+
 async function registerAndLogin(
   app: INestApplication,
   email: string,
   password: string,
 ) {
-  await request(app.getHttpServer())
+  const server = app.getHttpServer() as unknown as SupertestServer;
+  await request(server)
     .post('/api/v1/auth/register')
     .send({ email, password })
     .expect(201);
-  const res = await request(app.getHttpServer())
+  const res = await request(server)
     .post('/api/v1/auth/login')
     .send({ email, password })
     .expect(200);
@@ -62,7 +65,8 @@ describe('Cache outage fallback (list)', () => {
       isDeleted: false,
     });
 
-    const res = await request(app.getHttpServer())
+    const server = app.getHttpServer() as unknown as SupertestServer;
+    const res = await request(server)
       .get('/api/v1/articles?page=1&limit=20')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);

@@ -40,9 +40,7 @@ describe('InteractionsService', () => {
     }).compile();
 
     service = module.get<InteractionsService>(InteractionsService);
-    interactionsModel = module.get(
-      getModelToken(UserArticleInteraction.name),
-    );
+    interactionsModel = module.get(getModelToken(UserArticleInteraction.name));
     cacheService = module.get<CacheService>(CacheService);
   });
 

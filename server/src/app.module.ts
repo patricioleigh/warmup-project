@@ -35,7 +35,10 @@ import { CacheModule } from './cache/cache.module';
           .required()
           .when('NODE_ENV', {
             is: 'test',
-            then: Joi.custom((value, helpers) => {
+            then: Joi.custom((value: unknown, helpers: Joi.CustomHelpers) => {
+              if (typeof value !== 'string') {
+                return helpers.error('any.invalid');
+              }
               try {
                 const url = new URL(value);
                 const dbName = (url.pathname || '').replace(/^\//, '');
@@ -62,7 +65,10 @@ import { CacheModule } from './cache/cache.module';
           .required()
           .when('NODE_ENV', {
             is: 'test',
-            then: Joi.custom((value, helpers) => {
+            then: Joi.custom((value: unknown, helpers: Joi.CustomHelpers) => {
+              if (typeof value !== 'string') {
+                return helpers.error('any.invalid');
+              }
               try {
                 const url = new URL(value);
                 const db = url.pathname
