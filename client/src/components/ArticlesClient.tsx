@@ -23,7 +23,6 @@ export function ArticlesClient({ apiBaseUrl, token, onLogout }: ArticlesClientPr
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [hasNextPage, setHasNextPage] = useState(false);
-  const [total, setTotal] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,10 +64,9 @@ export function ArticlesClient({ apiBaseUrl, token, onLogout }: ArticlesClientPr
 
         setItems(payload.items ?? []);
         setHasNextPage(Boolean(payload.hasNextPage));
-        setTotal(payload.total ?? 0);
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!cancelled) {
-          setError(err?.message ?? "Failed to load articles");
+          setError(err instanceof Error ? err.message : "Failed to load articles");
         }
       } finally {
         if (!cancelled) {
@@ -104,9 +102,9 @@ export function ArticlesClient({ apiBaseUrl, token, onLogout }: ArticlesClientPr
         const payload = await res.json().catch(() => ({}));
         throw new Error(payload?.message ?? "Failed to delete article");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setItems(previousItems);
-      setError(err?.message ?? "Failed to delete article");
+      setError(err instanceof Error ? err.message : "Failed to delete article");
     }
   }
 
