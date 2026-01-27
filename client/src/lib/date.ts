@@ -1,13 +1,13 @@
-export function formatCreatedAt(createdAt: Date | string){
+export function formatCreatedAt(createdAt: Date | string) {
     const d = createdAt instanceof Date ? createdAt : new Date(createdAt);
 
     const now = new Date();
 
-    const starOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const starOfYesterday = new Date(starOfToday);
-    starOfYesterday.setDate(starOfYesterday.getDate() - 1);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfYesterday = new Date(startOfToday);
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
-    if (d >= starOfToday){
+    if (d >= startOfToday) {
         return d.toLocaleTimeString(undefined, {
             hour: "numeric",
             minute: "2-digit",
@@ -15,7 +15,7 @@ export function formatCreatedAt(createdAt: Date | string){
         });
     }
 
-    if (d >= starOfYesterday) {
+    if (d >= startOfYesterday) {
         return "Yesterday";
     }
 
@@ -23,7 +23,5 @@ export function formatCreatedAt(createdAt: Date | string){
         month: "short",
         day: "numeric",
         timeZone: "UTC",
-    })
-
-
+    });
 }
