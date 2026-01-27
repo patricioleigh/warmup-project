@@ -19,6 +19,22 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: warmup-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - warmup-net
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   server:
     build:
       context: ./server
@@ -29,11 +45,15 @@ services:
       NODE_ENV: production
       PORT: 3001
       MONGO_URI: mongodb://root:rootpass@mongo:27017/warmupdb?authSource=admin
+      REDIS_URL: redis://redis:6379
+      REDIS_TTL_SECONDS: 3900
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
       MAX_ITEMS: ${MAX_ITEMS:-100}
       MAX_RESPONSE_BYTES: ${MAX_RESPONSE_BYTES:-262144}
     depends_on:
       mongo:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "3001:3001"
@@ -61,6 +81,7 @@ services:
 
 volumes:
   mongo_data:
+  redis:
 
 networks:
   warmup-net:

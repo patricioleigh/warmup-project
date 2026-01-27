@@ -17,15 +17,19 @@ export class AuthService {
 
   async login(params: { email: string; password: string }) {
     const user = await this.users.findByEmail(params.email);
-    if (!user) throw new UnauthorizedException({ message: 'Invalid credentials' });
+    if (!user)
+      throw new UnauthorizedException({ message: 'Invalid credentials' });
 
-    const ok = await bcrypt.compare(params.password, (user as any).passwordHash);
-    if (!ok) throw new UnauthorizedException({ message: 'Invalid credentials' });
+    const ok = await bcrypt.compare(params.password, user.passwordHash);
+    if (!ok)
+      throw new UnauthorizedException({ message: 'Invalid credentials' });
 
-    const userId = String((user as any)._id);
-    const accessToken = await this.jwt.signAsync({ sub: userId, email: user.email });
+    const userId = String(user._id);
+    const accessToken = await this.jwt.signAsync({
+      sub: userId,
+      email: user.email,
+    });
 
     return { accessToken };
   }
 }
-

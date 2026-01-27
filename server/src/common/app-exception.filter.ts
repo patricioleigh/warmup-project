@@ -35,7 +35,7 @@ export class AppExceptionFilter implements ExceptionFilter {
 
     const errorId = `err_${randomUUID()}`;
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let status: number = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: ErrorCodeType = ErrorCode.INTERNAL_ERROR;
     let message = 'Internal error';
 
@@ -48,17 +48,21 @@ export class AppExceptionFilter implements ExceptionFilter {
       if (typeof maybeCode === 'string') code = maybeCode as ErrorCodeType;
       else {
         // Otherwise map common statuses to stable codes
-        if (status === HttpStatus.BAD_REQUEST) code = ErrorCode.VALIDATION_FAILED;
-        else if (status === HttpStatus.UNAUTHORIZED) code = ErrorCode.AUTH_INVALID_TOKEN;
+        if (status === HttpStatus.BAD_REQUEST)
+          code = ErrorCode.VALIDATION_FAILED;
+        else if (status === HttpStatus.UNAUTHORIZED)
+          code = ErrorCode.AUTH_INVALID_TOKEN;
         else if (status === HttpStatus.FORBIDDEN) code = ErrorCode.FORBIDDEN;
         else if (status === HttpStatus.NOT_FOUND) code = ErrorCode.NOT_FOUND;
-        else if (status === HttpStatus.TOO_MANY_REQUESTS) code = ErrorCode.RATE_LIMITED;
+        else if (status === HttpStatus.TOO_MANY_REQUESTS)
+          code = ErrorCode.RATE_LIMITED;
       }
 
       // Avoid leaking internal details; allow safe message override via payload.message
       const payloadMessage = payload?.message;
       if (typeof payloadMessage === 'string') message = payloadMessage;
-      else if (Array.isArray(payloadMessage)) message = payloadMessage.join(', ');
+      else if (Array.isArray(payloadMessage))
+        message = payloadMessage.join(', ');
       else message = exception.message || message;
     }
 
@@ -84,4 +88,3 @@ export class AppExceptionFilter implements ExceptionFilter {
     res.status(status).json(errorBody);
   }
 }
-

@@ -50,8 +50,8 @@ export function AuthPanel({ apiBaseUrl, onAuthSuccess }: AuthPanelProps) {
 
       onAuthSuccess(payload.accessToken);
       setPassword('');
-    } catch (err: any) {
-      setError(err?.message ?? 'Authentication failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
       setPending(false);
     }

@@ -1,0 +1,29 @@
+# warmup-project Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2026-01-16
+
+## Active Technologies
+
+- TypeScript (Node.js Active LTS) + NestJS, MongoDB, Redis (v7+), cache-manager, cache-manager-redis-ye (002-redis-caching)
+
+## Project Structure
+
+```text
+src/
+tests/
+```
+
+## Commands
+
+npm test && npm run lint
+
+## Code Style
+
+TypeScript (Node.js Active LTS): Follow standard conventions
+
+## Recent Changes
+
+- 002-redis-caching: Added TypeScript (Node.js Active LTS) + NestJS, MongoDB, Redis (v7+), cache-manager, cache-manager-redis-ye
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->

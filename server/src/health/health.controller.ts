@@ -1,4 +1,10 @@
-import { Controller, Get, HttpCode, HttpStatus, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { HealthService } from './health.service';
 import { ErrorCode } from '../common/error-codes';
 
@@ -8,12 +14,14 @@ export class HealthController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  overall() {
+  async overall() {
     const mongoReady = this.health.isMongoReady();
+    const redisReady = await this.health.isRedisReady();
     return {
-      status: mongoReady ? 'ok' : 'degraded',
+      status: mongoReady && redisReady ? 'ok' : 'degraded',
       checks: {
         mongo: mongoReady ? 'ok' : 'not_ready',
+        redis: redisReady ? 'ok' : 'not_ready',
       },
     };
   }
@@ -25,20 +33,21 @@ export class HealthController {
   }
 
   @Get('ready')
-  ready() {
+  async ready() {
     const mongoReady = this.health.isMongoReady();
-    if (!mongoReady) {
+    const redisReady = await this.health.isRedisReady();
+    if (!mongoReady || !redisReady) {
       throw new ServiceUnavailableException({
         code: ErrorCode.DEPENDENCY_TIMEOUT,
-        message: 'MongoDB not ready',
+        message: !mongoReady ? 'MongoDB not ready' : 'Redis not ready',
       });
     }
     return {
       status: 'ok',
       checks: {
         mongo: 'ok',
+        redis: 'ok',
       },
     };
   }
 }
-

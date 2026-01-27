@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+.next/
+out/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+*.log
+*.tmp
+*.swp
+.DS_Store

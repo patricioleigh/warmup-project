@@ -5,10 +5,10 @@ export type JobStatus = 'idle' | 'running' | 'success' | 'failed';
 @Schema({ timestamps: true })
 export class JobState {
   @Prop({ required: true, unique: true, index: true })
-  jobName: string;
+  jobName!: string;
 
   @Prop({ required: true, default: 'idle', index: true })
-  status: JobStatus;
+  status!: JobStatus;
 
   @Prop()
   lastRun?: Date;
@@ -34,4 +34,3 @@ export class JobState {
 }
 
 export const JobStateSchema = SchemaFactory.createForClass(JobState);
-

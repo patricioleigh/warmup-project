@@ -5,8 +5,9 @@ export type AuthenticatedUser = {
   email: string;
 };
 
-export const GetUser = createParamDecorator((_: unknown, ctx: ExecutionContext): AuthenticatedUser => {
-  const req = ctx.switchToHttp().getRequest();
-  return req.user as AuthenticatedUser;
-});
-
+export const GetUser = createParamDecorator(
+  (_: unknown, ctx: ExecutionContext): AuthenticatedUser => {
+    const req = ctx.switchToHttp().getRequest();
+    return req.user as AuthenticatedUser;
+  },
+);

@@ -1,4 +1,4 @@
-import { formatCreatedAt } from "@/lib/date"
+import { formatCreatedAt } from "@/lib/date";
 import type { Item } from "@/types/item";
 import { Trash2 } from "lucide-react";
 
@@ -7,8 +7,8 @@ export function ItemsList({
     onDelete, 
 }: {
     items: Item[];
-    onDelete: (id:string) => void;
-}){
+    onDelete: (id: string) => void;
+}) {
     if (!items.length) {
         return <p className="items-empty">No articles to show.</p>;
     }
@@ -18,9 +18,9 @@ export function ItemsList({
             {items.map((item, idx) => {
                 const id = String(item.objectId ?? "");
                 const key = String(item.objectId ?? idx);
-                const title = item.title ?? "(Sin titulo)";
+                const title = item.title ?? "(Sin título)";
                 const author = item.author ?? "(Sin autor)";
-                const createAt = item.createdAt ?? "";
+                const createdAt = item.createdAt ?? "";
                 const href = item.url ?? "";
 
                 function openLink() {
@@ -37,7 +37,7 @@ export function ItemsList({
                         tabIndex={href ? 0 : -1}
                         onKeyDown={(e) => {
                             if (!href) return;
-                            if (e.key == "Enter" || e.key == " ") openLink()
+                            if (e.key === "Enter" || e.key === " ") openLink();
                         }}
                         style={{cursor: href ? "pointer" : "default"}}
                         >
@@ -46,10 +46,10 @@ export function ItemsList({
                             <span className="items-author">- {author} -</span>
                         </div>
                         <div className="items-right">
-                            <span className="items-date">{formatCreatedAt(createAt)}</span>
+                            <span className="items-date">{formatCreatedAt(createdAt)}</span>
                             <button
                                 className="items-delete"
-                                aria-label="Dalete item"
+                                aria-label="Delete item"
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -65,5 +65,5 @@ export function ItemsList({
                 );
             })}
         </ul>
-    )
+    );
 }
