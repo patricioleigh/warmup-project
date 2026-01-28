@@ -10,6 +10,7 @@ on:
       - 'docker-compose.test.yml'
       - '.github/workflows/docker-integration.yml'
   pull_request:
+    types: [opened, synchronize, reopened]
     branches: [main, develop]
     paths:
       - 'server/**'
