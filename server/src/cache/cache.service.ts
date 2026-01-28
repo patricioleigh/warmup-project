@@ -138,57 +138,131 @@ export class CacheService {
     }).then((res) => res !== null);
   }
 
-  getGlobalListKey(page: number, limit: number): string {
-    return `global_items_list:${page}:${limit}`;
+  /**
+   * Invalidate all user list caches across all users.
+   * Use this when global data changes (e.g., new items synced from HackerNews).
+   */
+  async invalidateAllUserLists(): Promise<void> {
+    const client = this.getRedisClient();
+    if (!client) {
+      this.logger.debug({
+        msg: 'Cannot invalidate: Redis client not available',
+      });
+      return;
+    }
+
+    try {
+      // Find all keys matching pattern: user:*:list:keys
+      const scan = client.scan ?? client.SCAN;
+      if (typeof scan !== 'function') {
+        this.logger.warn({
+          msg: 'SCAN not available, cannot invalidate all user lists',
+        });
+        return;
+      }
+
+      // Use SCAN to find all user list key tracking sets
+      const pattern = 'user:*:list:keys';
+      const userListKeysKeys: string[] = [];
+
+      let cursor = '0';
+      do {
+        const result = await scan.call(client, cursor, {
+          MATCH: pattern,
+          COUNT: 100,
+        });
+        cursor = String(result[0]);
+        userListKeysKeys.push(...(result[1] || []));
+      } while (cursor !== '0');
+
+      if (userListKeysKeys.length === 0) {
+        this.logger.debug({ msg: 'No user list caches to invalidate' });
+        return;
+      }
+
+      // For each user, get their cached page keys and delete them
+      let totalKeysDeleted = 0;
+      for (const keysKey of userListKeysKeys) {
+        const keys = await this.smembers(keysKey);
+        if (keys && keys.length > 0) {
+          await Promise.all(keys.map((key) => this.del(key)));
+          totalKeysDeleted += keys.length;
+        }
+        await this.del(keysKey);
+      }
+
+      this.logger.log({
+        msg: 'Invalidated all user list caches',
+        userCount: userListKeysKeys.length,
+        keysDeleted: totalKeysDeleted,
+      });
+    } catch (err: any) {
+      this.logger.error({
+        msg: 'Failed to invalidate all user lists',
+        error: err?.message ?? err,
+      });
+    }
   }
 
-  async getGlobalList<T>(page: number, limit: number): Promise<T | null> {
-    const key = this.getGlobalListKey(page, limit);
+  getUserListKey(userId: string, page: number, limit: number): string {
+    return `user:${userId}:list:${page}:${limit}`;
+  }
+
+  private getUserListKeysKey(userId: string): string {
+    return `user:${userId}:list:keys`;
+  }
+
+  async getUserList<T>(
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<T | null> {
+    const key = this.getUserListKey(userId, page, limit);
     const cached = await this.get<T>(key);
     this.logger.debug({
-      msg: 'cache get global list',
+      msg: 'cache get user list',
       key,
       hit: cached !== null,
     });
     return cached;
   }
 
-  async setGlobalList<T>(
+  async setUserList<T>(
+    userId: string,
     page: number,
     limit: number,
     value: T,
     ttlSeconds: number,
   ): Promise<boolean> {
-    const key = this.getGlobalListKey(page, limit);
+    const key = this.getUserListKey(userId, page, limit);
     const stored = await this.set(key, value, ttlSeconds);
     if (stored) {
-      await this.sadd(this.globalListKeysKey, key);
-      await this.expire(this.globalListKeysKey, ttlSeconds);
+      const keysKey = this.getUserListKeysKey(userId);
+      await this.sadd(keysKey, key);
+      await this.expire(keysKey, ttlSeconds);
     }
     this.logger.debug({
-      msg: 'cache set global list',
+      msg: 'cache set user list',
       key,
       stored,
     });
     return stored;
   }
 
-  async invalidateGlobalList(): Promise<void> {
-    const keys = await this.smembers(this.globalListKeysKey);
+  async invalidateUserList(userId: string): Promise<void> {
+    const keysKey = this.getUserListKeysKey(userId);
+    const keys = await this.smembers(keysKey);
     if (!keys || keys.length === 0) {
-      this.logger.debug({ msg: 'cache invalidate global list: no keys' });
+      this.logger.debug({ msg: 'cache invalidate user list: no keys', userId });
       return;
     }
     this.logger.debug({
-      msg: 'cache invalidate global list',
+      msg: 'cache invalidate user list',
+      userId,
       count: keys.length,
     });
     await Promise.all(keys.map((key) => this.del(key)));
-    await this.del(this.globalListKeysKey);
-  }
-
-  getUserHiddenKey(userId: string): string {
-    return `user:${userId}:hidden`;
+    await this.del(keysKey);
   }
 
   private async safeExec<T>(op: CacheOp<T>): Promise<T | null> {

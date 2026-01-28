@@ -101,23 +101,4 @@ describe('CacheService', () => {
       expect(result).toBe(false);
     });
   });
-
-  describe('getGlobalListKey', () => {
-    it('should generate correct cache key', () => {
-      const key = service.getGlobalListKey(1, 20);
-      expect(key).toBe('global_items_list:1:20');
-    });
-
-    it('should generate correct cache key for different pages', () => {
-      const key = service.getGlobalListKey(3, 50);
-      expect(key).toBe('global_items_list:3:50');
-    });
-  });
-
-  describe('getUserHiddenKey', () => {
-    it('should generate correct user hidden key', () => {
-      const key = service.getUserHiddenKey('user123');
-      expect(key).toBe('user:user123:hidden');
-    });
-  });
 });

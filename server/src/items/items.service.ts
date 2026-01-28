@@ -91,7 +91,8 @@ export class ItemsService implements OnApplicationBootstrap {
         msg: 'hourlySync skipped: runExclusive lock not acquired',
       });
     } else if (result?.ran && !(result as any).errorId) {
-      await this.cacheService.invalidateGlobalList();
+      // Invalidate all user caches so everyone sees new items immediately
+      await this.cacheService.invalidateAllUserLists();
       this.logger.log({
         msg: 'hourlySync cache invalidated',
         jobRunId: result?.jobRunId,
@@ -218,63 +219,6 @@ export class ItemsService implements OnApplicationBootstrap {
         error: e?.message ?? 'bulkWrite failed',
         writeErrors: writeErrors ?? null,
       };
-    }
-  }
-
-  async findAll() {
-    return this.ItemsModel.find({}).sort({ createdAt: -1 }).limit(50).lean();
-  }
-
-  async findNotDeleted(params?: { page?: number; limit?: number }) {
-    const page = Math.max(1, params?.page ?? 1);
-    const limit = Math.min(100, Math.max(1, params?.limit ?? 20));
-    const skip = (page - 1) * limit;
-
-    const filter = { isDeleted: false };
-
-    const [items, total] = await Promise.all([
-      this.ItemsModel.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      this.ItemsModel.countDocuments(filter),
-    ]);
-
-    return {
-      page,
-      limit,
-      total,
-      items,
-    };
-  }
-
-  async markAsDeleted(objectId: string) {
-    const res = await this.ItemsModel.updateOne(
-      { objectId, isDeleted: false },
-      { $set: { isDeleted: true } },
-    );
-
-    if (res.matchedCount === 0) {
-      const exists = await this.ItemsModel.exists({ objectId });
-      if (!exists) throw new NotFoundException(`Item not found: ${objectId}`);
-      return { objectId, isDeleted: true, changed: false };
-    }
-
-    return { objectId, isDeleted: true, changed: true };
-  }
-
-  async findAllNotDeleted() {
-    try {
-      return await this.ItemsModel.find({ isDeleted: false })
-        .sort({ createdAt: -1 })
-        .lean();
-    } catch (e: any) {
-      this.logger.error(
-        `findAllNotDeleted failed: ${e?.message ?? e}`,
-        e.stack,
-      );
-      throw new InternalServerErrorException('Failed to fetch items');
     }
   }
 }

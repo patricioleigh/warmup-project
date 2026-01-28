@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ArticlesService } from './articles.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Items } from '../items/schemas/items.schema';
-import { InteractionsService } from '../interactions/interactions.service';
 import { ConfigService } from '@nestjs/config';
 import { CacheService } from '../cache/cache.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -54,10 +53,6 @@ describe('ArticlesService', () => {
           useValue: mockItemsModel,
         },
         {
-          provide: InteractionsService,
-          useValue: mockInteractionsService,
-        },
-        {
           provide: ConfigService,
           useValue: mockConfigService,
         },
@@ -70,7 +65,6 @@ describe('ArticlesService', () => {
 
     service = module.get<ArticlesService>(ArticlesService);
     itemsModel = module.get(getModelToken(Items.name));
-    interactionsService = module.get<InteractionsService>(InteractionsService);
     cacheService = module.get<CacheService>(CacheService);
   });
 

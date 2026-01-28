@@ -2,13 +2,13 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 @Schema({ timestamps: true })
 export class UserArticleInteraction {
-  @Prop({ required: true, index: true })
+  @Prop({ required: true })
   userId!: string;
 
-  @Prop({ required: true, index: true })
+  @Prop({ required: true })
   objectId!: string;
 
-  @Prop({ required: true, default: false, index: true })
+  @Prop({ required: true, default: false })
   isHidden!: boolean;
 }
 

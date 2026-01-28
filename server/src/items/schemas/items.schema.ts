@@ -17,7 +17,7 @@ export class Items {
   @Prop({ required: true, index: true })
   createdAt!: Date;
 
-  @Prop({ default: false, required: true, index: true })
+  @Prop({ default: false, required: true })
   isDeleted!: boolean;
 }
 

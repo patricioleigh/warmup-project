@@ -14,7 +14,6 @@ import { AppExceptionFilter } from './common/app-exception.filter';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ArticlesModule } from './articles/articles.module';
-import { InteractionsModule } from './interactions/interactions.module';
 import { JobsModule } from './jobs/jobs.module';
 import { CacheModule } from './cache/cache.module';
 
@@ -95,7 +94,6 @@ import { CacheModule } from './cache/cache.module';
       useFactory: (config: ConfigService) => ({
         throttlers: [
           {
-            // @nestjs/throttler expects TTL in milliseconds
             ttl: (config.get<number>('RATE_LIMIT_TTL_SECONDS') ?? 60) * 1000,
             limit: config.get<number>('RATE_LIMIT_LIMIT') ?? 10,
           },
@@ -117,7 +115,6 @@ import { CacheModule } from './cache/cache.module';
     UsersModule,
     AuthModule,
     ArticlesModule,
-    InteractionsModule,
     JobsModule,
   ],
   controllers: [AppController],

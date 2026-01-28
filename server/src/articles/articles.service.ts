@@ -10,8 +10,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import type { Model } from 'mongoose';
 import { Items } from '../items/schemas/items.schema';
 import { ErrorCode } from '../common/error-codes';
-import { InteractionsService } from '../interactions/interactions.service';
 import { CacheService } from '../cache/cache.service';
+import { UserArticleInteraction } from './schemas/user-article-interaction.schema';
 
 type ArticleDto = {
   objectId: string;
@@ -52,7 +52,8 @@ export class ArticlesService {
 
   constructor(
     @InjectModel(Items.name) private readonly items: Model<Items>,
-    private readonly interactions: InteractionsService,
+    @InjectModel(UserArticleInteraction.name)
+    private readonly userInteractions: Model<UserArticleInteraction>,
     private readonly config: ConfigService,
     private readonly cacheService: CacheService,
   ) {}
@@ -61,112 +62,238 @@ export class ArticlesService {
     const page = params.page ?? 1;
     const limit = params.limit ?? 20;
 
-    const maxItems = this.config.get<number>('MAX_ITEMS') ?? 100;
-    if (limit > maxItems) {
+    // Validation: page must be >= 1
+    if (page < 1) {
       throw new BadRequestException({
         code: ErrorCode.PAGINATION_LIMIT_EXCEEDED,
-        message: `limit must be <= ${maxItems}`,
+        message: 'page must be >= 1',
       });
     }
 
-    const hiddenIds = await this.interactions.getHiddenObjectIdsForUser(
-      params.userId,
-    );
-    const hiddenSet = new Set(hiddenIds);
+    // Validation: limit must be within bounds
+    const maxItems = this.config.get<number>('MAX_ITEMS') ?? 100;
+    if (limit > maxItems || limit < 1) {
+      throw new BadRequestException({
+        code: ErrorCode.PAGINATION_LIMIT_EXCEEDED,
+        message: `limit must be between 1 and ${maxItems}`,
+      });
+    }
+
+    // Check cache first (user-specific)
+    const cached = await this.cacheService.getUserList<{
+      items: ArticleDto[];
+      total: number;
+      hasNextPage: boolean;
+    }>(params.userId, page, limit);
+
+    if (cached) {
+      this.logger.debug({
+        msg: 'cache hit user list',
+        userId: params.userId,
+        page,
+        limit,
+        count: cached.items.length,
+      });
+
+      // Early size validation before returning cached data
+      const responseForValidation = {
+        items: cached.items,
+        page,
+        limit,
+        total: cached.total,
+        hasNextPage: cached.hasNextPage,
+      };
+      const estimatedSize = this.estimateResponseSize(responseForValidation);
+      const maxBytes = this.config.get<number>('MAX_RESPONSE_BYTES') ?? 262144;
+      if (estimatedSize > maxBytes) {
+        throw new UnprocessableEntityException({
+          code: ErrorCode.RESPONSE_TOO_LARGE,
+          message: 'Response too large; reduce limit or add filters',
+        });
+      }
+
+      return responseForValidation;
+    }
+
+    // Cache miss: query database with aggregation
+    this.logger.debug({
+      msg: 'cache miss user list',
+      userId: params.userId,
+      page,
+      limit,
+    });
 
     const skip = (page - 1) * limit;
 
-    const cached = await this.cacheService.getGlobalList<{
-      items: ArticleDto[];
-      total: number;
-    }>(page, limit);
+    // Use MongoDB aggregation to let the database do the heavy lifting
+    // This solves the N+1 problem and ensures correct pagination
+    const pipeline: any[] = [
+      // 1. Filter non-deleted items
+      { $match: { isDeleted: false } },
+      // 2. Left join with user interactions to check if hidden
+      {
+        $lookup: {
+          from: 'userarticleinteractions',
+          let: { itemObjectId: '$objectId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$objectId', '$$itemObjectId'] },
+                    { $eq: ['$userId', params.userId] },
+                    { $eq: ['$isHidden', true] },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+          ],
+          as: 'hiddenInteraction',
+        },
+      },
+      // 3. Filter out hidden items
+      { $match: { hiddenInteraction: { $size: 0 } } },
+      // 4. Sort by createdAt descending
+      { $sort: { createdAt: -1 as const } },
+      // 5. Facet to get both count and paginated results in one query
+      {
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          items: [
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                objectId: 1,
+                title: 1,
+                url: 1,
+                author: 1,
+                createdAt: 1,
+                _id: 0,
+              },
+            },
+          ],
+        },
+      },
+    ];
 
-    let total = cached?.total ?? 0;
-    let items: ArticleDto[] = cached?.items ?? [];
+    const [result] = await this.items.aggregate(pipeline);
 
-    if (!cached) {
-      this.logger.debug({ msg: 'cache miss article list', page, limit });
-      const [dbTotal, rows] = await Promise.all([
-        this.items.countDocuments({ isDeleted: false }),
-        this.items
-          .find({ isDeleted: false })
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .select({
-            objectId: 1,
-            title: 1,
-            url: 1,
-            author: 1,
-            createdAt: 1,
-            _id: 0,
-          })
-          .lean<ItemsListRow[]>(),
-      ]);
+    const total = result.metadata[0]?.total ?? 0;
+    const rows = result.items as ItemsListRow[];
 
-      total = dbTotal;
-      items = rows.map((r) => {
-        const createdAt = asSafeDate(r.createdAt);
+    // Transform and validate data
+    const items: ArticleDto[] = rows.map((r) => {
+      const createdAt = asSafeDate(r.createdAt);
 
-        return {
-          objectId: asSafeString(r.objectId),
-          title: asSafeString(r.title),
-          url: r.url ? asSafeString(r.url) : undefined,
-          author: asSafeString(r.author),
-          createdAt: (createdAt ?? new Date(0)).toISOString(),
-        };
-      });
+      // Log warning if data is corrupted
+      if (!createdAt) {
+        this.logger.warn({
+          msg: 'corrupted createdAt field',
+          objectId: r.objectId,
+        });
+      }
 
-      const ttlSeconds = this.config.get<number>('REDIS_TTL_SECONDS') ?? 3900;
-      await this.cacheService.setGlobalList(
-        page,
-        limit,
-        { items, total },
-        ttlSeconds,
-      );
-    } else {
-      this.logger.debug({
-        msg: 'cache hit article list',
-        page,
-        limit,
-        count: items.length,
-      });
-    }
+      return {
+        objectId: asSafeString(r.objectId),
+        title: asSafeString(r.title),
+        url: r.url ? asSafeString(r.url) : undefined,
+        author: asSafeString(r.author),
+        createdAt: createdAt ? createdAt.toISOString() : new Date(0).toISOString(),
+      };
+    });
 
-    const filteredItems = items.filter((item) => !hiddenSet.has(item.objectId));
-    const adjustedTotal = Math.max(total - hiddenIds.length, 0);
+    const hasNextPage = skip + items.length < total;
 
-    const hasNextPage = skip + filteredItems.length < adjustedTotal;
     const response = {
-      items: filteredItems,
+      items,
       page,
       limit,
-      total: adjustedTotal,
+      total,
       hasNextPage,
     };
 
+    // Validate response size BEFORE caching
+    const estimatedSize = this.estimateResponseSize(response);
     const maxBytes = this.config.get<number>('MAX_RESPONSE_BYTES') ?? 262144;
-    const bytes = Buffer.byteLength(JSON.stringify(response), 'utf8');
-    if (bytes > maxBytes) {
+    if (estimatedSize > maxBytes) {
       throw new UnprocessableEntityException({
         code: ErrorCode.RESPONSE_TOO_LARGE,
         message: 'Response too large; reduce limit or add filters',
       });
     }
 
+    // Cache the result (user-specific)
+    const ttlSeconds = this.config.get<number>('REDIS_TTL_SECONDS') ?? 3900;
+    await this.cacheService.setUserList(
+      params.userId,
+      page,
+      limit,
+      { items, total, hasNextPage },
+      ttlSeconds,
+    );
+
     return response;
   }
 
+  /**
+   * Estimate response size without full JSON.stringify
+   * This is much faster for large responses
+   */
+  private estimateResponseSize(response: {
+    items: ArticleDto[];
+    total: number;
+    page: number;
+    limit: number;
+    hasNextPage: boolean;
+  }): number {
+    // Base overhead for JSON structure
+    let size = 100; // {"items":[],"page":N,"limit":N,"total":N,"hasNextPage":false}
+    
+    // Estimate each item
+    for (const item of response.items) {
+      // {"objectId":"","title":"","url":"","author":"","createdAt":""}
+      size += 80; // JSON overhead
+      size += item.objectId.length;
+      size += item.title.length;
+      size += item.url ? item.url.length : 0;
+      size += item.author.length;
+      size += 24; // ISO date string length
+    }
+
+    return size;
+  }
+
   async hideForUser(params: { userId: string; objectId: string }) {
+    // Verify article exists
     const existing = await this.items
       .findOne({ objectId: params.objectId, isDeleted: false })
       .select({ objectId: 1 });
+    
     if (!existing) {
       throw new NotFoundException({
         code: ErrorCode.NOT_FOUND,
         message: 'Article not found',
       });
     }
-    return this.interactions.hideArticle(params);
+
+    // Mark as hidden in database
+    await this.userInteractions.findOneAndUpdate(
+      { userId: params.userId, objectId: params.objectId },
+      { $set: { isHidden: true } },
+      { upsert: true, new: true },
+    );
+
+    // Invalidate all cached list pages for this user
+    await this.cacheService.invalidateUserList(params.userId);
+
+    this.logger.debug({
+      msg: 'article hidden and cache invalidated',
+      objectId: params.objectId,
+      userId: params.userId,
+    });
+
+    return { objectId: params.objectId, isHidden: true };
   }
 }
