@@ -167,12 +167,17 @@ export class CacheService {
 
       let cursor = '0';
       do {
-        const result = await scan.call(client, cursor, {
+        const result: unknown = await scan.call(client, cursor, {
           MATCH: pattern,
           COUNT: 100,
         });
-        cursor = String(result[0]);
-        userListKeysKeys.push(...(result[1] || []));
+        const nextCursor = Array.isArray(result) ? result[0] : undefined;
+        const entries = Array.isArray(result) ? result[1] : undefined;
+        cursor = nextCursor ? String(nextCursor) : '0';
+        const foundKeys: string[] = Array.isArray(entries)
+          ? entries.filter((key): key is string => typeof key === 'string')
+          : [];
+        userListKeysKeys.push(...foundKeys);
       } while (cursor !== '0');
 
       if (userListKeysKeys.length === 0) {

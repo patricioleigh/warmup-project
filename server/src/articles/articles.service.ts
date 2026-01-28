@@ -200,7 +200,9 @@ export class ArticlesService {
         title: asSafeString(r.title),
         url: r.url ? asSafeString(r.url) : undefined,
         author: asSafeString(r.author),
-        createdAt: createdAt ? createdAt.toISOString() : new Date(0).toISOString(),
+        createdAt: createdAt
+          ? createdAt.toISOString()
+          : new Date(0).toISOString(),
       };
     });
 
@@ -250,7 +252,7 @@ export class ArticlesService {
   }): number {
     // Base overhead for JSON structure
     let size = 100; // {"items":[],"page":N,"limit":N,"total":N,"hasNextPage":false}
-    
+
     // Estimate each item
     for (const item of response.items) {
       // {"objectId":"","title":"","url":"","author":"","createdAt":""}
@@ -270,7 +272,7 @@ export class ArticlesService {
     const existing = await this.items
       .findOne({ objectId: params.objectId, isDeleted: false })
       .select({ objectId: 1 });
-    
+
     if (!existing) {
       throw new NotFoundException({
         code: ErrorCode.NOT_FOUND,

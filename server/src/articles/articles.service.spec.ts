@@ -24,11 +24,6 @@ describe('ArticlesService', () => {
       lean: jest.fn(),
     };
 
-    const mockInteractionsService = {
-      getHiddenObjectIdsForUser: jest.fn(),
-      hideArticle: jest.fn(),
-    };
-
     const mockConfigService = {
       get: jest.fn((key: string) => {
         const config: Record<string, any> = {
