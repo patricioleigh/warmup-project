@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ArticlesService } from './articles.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Items } from '../items/schemas/items.schema';
+import { UserArticleInteraction } from './schemas/user-article-interaction.schema';
 import { ConfigService } from '@nestjs/config';
 import { CacheService } from '../cache/cache.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -9,19 +10,24 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 describe('ArticlesService', () => {
   let service: ArticlesService;
   let itemsModel: any;
-  let interactionsService: any;
+  let userInteractionsModel: any;
   let cacheService: any;
 
   beforeEach(async () => {
     const mockItemsModel = {
       find: jest.fn().mockReturnThis(),
       findOne: jest.fn().mockReturnThis(),
+      aggregate: jest.fn(),
       countDocuments: jest.fn(),
       sort: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
       lean: jest.fn(),
+    };
+
+    const mockUserInteractionsModel = {
+      findOneAndUpdate: jest.fn(),
     };
 
     const mockConfigService = {
@@ -36,8 +42,9 @@ describe('ArticlesService', () => {
     };
 
     const mockCacheService = {
-      getGlobalList: jest.fn(),
-      setGlobalList: jest.fn(),
+      getUserList: jest.fn(),
+      setUserList: jest.fn(),
+      invalidateUserList: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -46,6 +53,10 @@ describe('ArticlesService', () => {
         {
           provide: getModelToken(Items.name),
           useValue: mockItemsModel,
+        },
+        {
+          provide: getModelToken(UserArticleInteraction.name),
+          useValue: mockUserInteractionsModel,
         },
         {
           provide: ConfigService,
@@ -60,6 +71,9 @@ describe('ArticlesService', () => {
 
     service = module.get<ArticlesService>(ArticlesService);
     itemsModel = module.get(getModelToken(Items.name));
+    userInteractionsModel = module.get(
+      getModelToken(UserArticleInteraction.name),
+    );
     cacheService = module.get<CacheService>(CacheService);
   });
 
@@ -79,10 +93,10 @@ describe('ArticlesService', () => {
           },
         ],
         total: 1,
+        hasNextPage: false,
       };
 
-      cacheService.getGlobalList.mockResolvedValue(mockCachedData);
-      interactionsService.getHiddenObjectIdsForUser.mockResolvedValue([]);
+      cacheService.getUserList.mockResolvedValue(mockCachedData);
 
       const result = await service.listForUser({
         userId: 'user1',
@@ -90,7 +104,7 @@ describe('ArticlesService', () => {
         limit: 20,
       });
 
-      expect(cacheService.getGlobalList).toHaveBeenCalledWith(1, 20);
+      expect(cacheService.getUserList).toHaveBeenCalledWith('user1', 1, 20);
       expect(result).toEqual({
         items: mockCachedData.items,
         page: 1,
@@ -101,19 +115,22 @@ describe('ArticlesService', () => {
     });
 
     it('should fetch from database on cache miss', async () => {
-      const mockItems = [
+      const mockAggregationResult = [
         {
-          objectId: '1',
-          title: 'Test Article',
-          author: 'test',
-          createdAt: new Date('2024-01-01'),
+          metadata: [{ total: 1 }],
+          items: [
+            {
+              objectId: '1',
+              title: 'Test Article',
+              author: 'test',
+              createdAt: new Date('2024-01-01'),
+            },
+          ],
         },
       ];
 
-      cacheService.getGlobalList.mockResolvedValue(null);
-      interactionsService.getHiddenObjectIdsForUser.mockResolvedValue([]);
-      itemsModel.countDocuments.mockResolvedValue(1);
-      itemsModel.lean.mockResolvedValue(mockItems);
+      cacheService.getUserList.mockResolvedValue(null);
+      itemsModel.aggregate.mockResolvedValue(mockAggregationResult);
 
       const result = await service.listForUser({
         userId: 'user1',
@@ -121,38 +138,45 @@ describe('ArticlesService', () => {
         limit: 20,
       });
 
-      expect(itemsModel.find).toHaveBeenCalledWith({ isDeleted: false });
-      expect(cacheService.setGlobalList).toHaveBeenCalled();
+      expect(itemsModel.aggregate).toHaveBeenCalled();
+      expect(cacheService.setUserList).toHaveBeenCalledWith(
+        'user1',
+        1,
+        20,
+        expect.objectContaining({
+          items: expect.any(Array),
+          total: 1,
+          hasNextPage: expect.any(Boolean),
+        }),
+        3900,
+      );
       expect(result.items).toHaveLength(1);
     });
 
-    it('should filter out hidden articles', async () => {
-      const mockCachedData = {
-        items: [
-          {
-            objectId: '1',
-            title: 'Article 1',
-            author: 'test',
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-          {
-            objectId: '2',
-            title: 'Article 2',
-            author: 'test',
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-          {
-            objectId: '3',
-            title: 'Article 3',
-            author: 'test',
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-        total: 3,
-      };
+    it('should filter out hidden articles via aggregation pipeline', async () => {
+      // When cache miss, aggregation pipeline should filter hidden items
+      const mockAggregationResult = [
+        {
+          metadata: [{ total: 2 }], // Only 2 items after filtering hidden
+          items: [
+            {
+              objectId: '1',
+              title: 'Article 1',
+              author: 'test',
+              createdAt: new Date('2024-01-01'),
+            },
+            {
+              objectId: '3',
+              title: 'Article 3',
+              author: 'test',
+              createdAt: new Date('2024-01-01'),
+            },
+          ],
+        },
+      ];
 
-      cacheService.getGlobalList.mockResolvedValue(mockCachedData);
-      interactionsService.getHiddenObjectIdsForUser.mockResolvedValue(['2']);
+      cacheService.getUserList.mockResolvedValue(null);
+      itemsModel.aggregate.mockResolvedValue(mockAggregationResult);
 
       const result = await service.listForUser({
         userId: 'user1',
@@ -160,11 +184,17 @@ describe('ArticlesService', () => {
         limit: 20,
       });
 
+      // Verify aggregation pipeline includes $lookup for hidden items
+      const aggregateCall = itemsModel.aggregate.mock.calls[0][0];
+      expect(aggregateCall).toBeDefined();
+      expect(Array.isArray(aggregateCall)).toBe(true);
+
+      // Verify result doesn't include hidden items (already filtered by DB)
       expect(result.items).toHaveLength(2);
       expect(
         result.items.find((item: any) => item.objectId === '2'),
       ).toBeUndefined();
-      expect(result.total).toBe(2); // 3 - 1 hidden
+      expect(result.total).toBe(2);
     });
 
     it('should throw BadRequestException when limit exceeds MAX_ITEMS', async () => {
@@ -173,6 +203,34 @@ describe('ArticlesService', () => {
           userId: 'user1',
           page: 1,
           limit: 150,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when page is less than 1', async () => {
+      await expect(
+        service.listForUser({
+          userId: 'user1',
+          page: 0,
+          limit: 20,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.listForUser({
+          userId: 'user1',
+          page: -1,
+          limit: 20,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when limit is less than 1', async () => {
+      await expect(
+        service.listForUser({
+          userId: 'user1',
+          page: 1,
+          limit: 0,
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -188,10 +246,10 @@ describe('ArticlesService', () => {
             createdAt: '2024-01-01T00:00:00.000Z',
           })),
         total: 50,
+        hasNextPage: true,
       };
 
-      cacheService.getGlobalList.mockResolvedValue(mockCachedData);
-      interactionsService.getHiddenObjectIdsForUser.mockResolvedValue([]);
+      cacheService.getUserList.mockResolvedValue(mockCachedData);
 
       const result = await service.listForUser({
         userId: 'user1',
@@ -204,17 +262,19 @@ describe('ArticlesService', () => {
   });
 
   describe('hideForUser', () => {
-    it('should hide an existing article', async () => {
+    it('should hide an existing article and invalidate cache', async () => {
       const mockFindOne = jest.fn().mockReturnValue({
         select: jest.fn().mockResolvedValue({ objectId: '1' }),
       });
       itemsModel.findOne = mockFindOne;
 
-      interactionsService.hideArticle.mockResolvedValue({
+      userInteractionsModel.findOneAndUpdate.mockResolvedValue({
         userId: 'user1',
         objectId: '1',
-        hiddenAt: new Date(),
+        isHidden: true,
       });
+
+      cacheService.invalidateUserList.mockResolvedValue(undefined);
 
       const result = await service.hideForUser({
         userId: 'user1',
@@ -225,11 +285,16 @@ describe('ArticlesService', () => {
         objectId: '1',
         isDeleted: false,
       });
-      expect(interactionsService.hideArticle).toHaveBeenCalledWith({
-        userId: 'user1',
+      expect(userInteractionsModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { userId: 'user1', objectId: '1' },
+        { $set: { isHidden: true } },
+        { upsert: true, new: true },
+      );
+      expect(cacheService.invalidateUserList).toHaveBeenCalledWith('user1');
+      expect(result).toEqual({
         objectId: '1',
+        isHidden: true,
       });
-      expect(result).toBeDefined();
     });
 
     it('should throw NotFoundException when article does not exist', async () => {
