@@ -89,9 +89,6 @@ describe('Articles user-specific cache (e2e)', () => {
     const email = `u_${Date.now()}@ex.com`;
     const token = await registerAndLogin(app, email, 'StrongPassw0rd!');
 
-    const user = await conn.collection('users').findOne({ email });
-    const userId = user?._id?.toString();
-
     await conn.collection('items').insertOne({
       objectId: 'cache-hit-1',
       title: 'Item for cache hit test',
