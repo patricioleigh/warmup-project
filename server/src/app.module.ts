@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ItemsModule } from './items/items.module';
 import { HnModule } from './hn/hn.module';
@@ -117,9 +115,7 @@ import { CacheModule } from './cache/cache.module';
     ArticlesModule,
     JobsModule,
   ],
-  controllers: [AppController],
   providers: [
-    AppService,
     { provide: APP_FILTER, useClass: AppExceptionFilter },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],

@@ -163,7 +163,7 @@ export class ItemsService implements OnApplicationBootstrap {
       upserted =
         result?.upserterCount ??
         result?.result?.nUpserted ??
-        result?.getRawResponde?.()?.nUpserted ??
+        result?.getRawResponse?.()?.nUpserted ??
         0;
 
       modified =
